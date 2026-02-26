@@ -1,0 +1,3 @@
+[
+  { "id": 1, "payment_no": "PAY-001", "tenant_id": 1, "date": "2025-02-06", "amount": 2500, "method": "Bank Transfer", "receipt_no": "R-001", "reference": "Feb Rent", "captured_by": "Finance" }
+]

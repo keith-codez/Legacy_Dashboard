@@ -1,0 +1,7 @@
+[
+  { "id": 1, "unit_no": "A1", "floor": 1, "size_sqm": 120, "base_rent": 2500, "unit_type": "Office", "status": "Occupied" },
+  { "id": 2, "unit_no": "A2", "floor": 1, "size_sqm": 90, "base_rent": 1900, "unit_type": "Office", "status": "Occupied" },
+  { "id": 3, "unit_no": "B1", "floor": 2, "size_sqm": 150, "base_rent": 3200, "unit_type": "Retail", "status": "Occupied" },
+  { "id": 4, "unit_no": "B2", "floor": 2, "size_sqm": 75, "base_rent": 1600, "unit_type": "Retail", "status": "Vacant" },
+  { "id": 5, "unit_no": "C1", "floor": 3, "size_sqm": 200, "base_rent": 4200, "unit_type": "Warehouse", "status": "Occupied" }
+]

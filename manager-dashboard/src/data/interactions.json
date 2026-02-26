@@ -1,0 +1,4 @@
+[
+  { "id": 1, "tenant_id": 1, "type": "Call", "subject": "Late utilities payment", "notes": "Tenant acknowledged invoice", "date": "2025-02-12", "recorded_by": "Admin", "priority": "Medium" },
+  { "id": 2, "tenant_id": 2, "type": "Email", "subject": "Lease renewal", "notes": "Sent renewal terms", "date": "2025-01-20", "recorded_by": "Manager", "priority": "Low" }
+]
