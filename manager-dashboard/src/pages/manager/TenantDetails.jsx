@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import {
   Building2,
   Mail,
@@ -52,7 +52,7 @@ function TenantDetails() {
         style={{ minHeight: "calc(100vh - 100px)" }}
       >
         {/* LEFT PANEL */}
-        <div className="md:w-1/3 flex flex-col gap-6">
+        <div className="w-full lg:w-1/3 flex flex-col gap-6">
           <div className="w-full max-w-lg mx-auto">
             {/* Tabs */}
             <div className="flex justify-between bg-blue-600 text-white font-semibold text-lg p-2 rounded-t-md">
@@ -320,12 +320,15 @@ function TenantDetails() {
 /* Small helpers */
 
 const Row = ({ label, icon, children }) => (
-  <div className="flex justify-between">
-    <span className="font-semibold flex items-center gap-2">
+  <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-4">
+    <span className="font-semibold flex items-center gap-2 shrink-0">
       {icon}
       {label}
     </span>
-    <span>{children}</span>
+
+    <span className="break-words text-right sm:text-right">
+      {children}
+    </span>
   </div>
 );
 

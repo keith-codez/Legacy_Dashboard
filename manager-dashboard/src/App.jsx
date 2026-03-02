@@ -11,7 +11,8 @@ import Units from "./pages/manager/Units";
 import Interactions from "./pages/manager/Interactions";
 import Reports from "./pages/manager/Reports";
 import TenantDetails from "./pages/manager/TenantDetails";
-
+import EditTenant from "./pages/manager/EditTenant";
+import CreateTenant from "./pages/manager/CreateTenant";  
 export default function App() {
   return (
     <BrowserRouter>
@@ -25,6 +26,8 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="tenants" element={<TenantList />} />
           <Route path="tenants/:id" element={<TenantDetails />} />
+          <Route path="tenants/new" element={<CreateTenant />} />
+          <Route path="tenants/:id/edit" element={<EditTenant />} />
           <Route path="payments" element={<Payments />} />
           <Route path="invoices" element={<Invoices />} />
           <Route path="leases" element={<Leases />} />

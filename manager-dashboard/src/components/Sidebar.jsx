@@ -15,20 +15,20 @@ export default function Sidebar({ isOpen, onClose }) {
       {/* Overlay for mobile */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/40 z-30 md:hidden"
+          className="fixed inset-0 bg-black/40 z-30 lg:hidden"
           onClick={onClose}
         />
       )}
 
       <aside
         className={`
-          fixed md:relative
+          fixed lg:relative
           inset-y-0 left-0
           w-64 bg-white border-r
           z-40
           transform transition-transform duration-200
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
-          md:translate-x-0
+          lg:translate-x-0
         `}
       >
         <div className="flex flex-col h-full">
