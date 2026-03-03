@@ -18,7 +18,7 @@ export default function Topbar({ onMenuClick }) {
   return (
     <>
       {/* Mobile Header */}
-      <header className="md:hidden bg-white border-b p-4 flex items-center justify-between">
+      <header className="lg:hidden bg-white border-b p-4 flex items-center justify-between">
         <button
           onClick={onMenuClick}
           className="text-gray-700 text-xl"

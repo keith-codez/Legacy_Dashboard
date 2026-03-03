@@ -25,20 +25,66 @@ export const getTenantInvoices = (tenantId) =>
 export const getTenantInteractions = (tenantId) =>
   interactions.filter((i) => i.tenant_id === Number(tenantId));
 
-export const getTenantBalance = (tenantId) => {
-  const tenantInvoices = getTenantInvoices(tenantId);
+export const getTenantBalance = (tenantId) =>
+  getTenantInvoices(tenantId)
+    .reduce(
+      (sum, invoice) => sum + getInvoiceBalance(invoice.id),
+      0
+    );
 
-  const invoiced = tenantInvoices.reduce(
-    (sum, i) => sum + i.total_amount,
-    0
-  );
 
-  const allocated = allocations
-    .filter((a) =>
-      tenantInvoices.some((i) => i.id === a.invoice_id)
-    )
+
+
+
+export const getInvoiceAllocations = (invoiceId) =>
+  allocations.filter(a => a.invoice_id === Number(invoiceId));
+
+export const getInvoicePaidAmount = (invoiceId) =>
+  getInvoiceAllocations(invoiceId)
     .reduce((sum, a) => sum + a.allocation_amount, 0);
 
-  return invoiced - allocated;
+export const getInvoiceBalance = (invoiceId) => {
+  const invoice = invoices.find(i => i.id === Number(invoiceId));
+  if (!invoice) return 0;
+
+  const paid = getInvoicePaidAmount(invoiceId);
+  return invoice.total_amount - paid;
 };
 
+export const getInvoiceStatus = (invoiceId) => {
+  const invoice = invoices.find(i => i.id === Number(invoiceId));
+  if (!invoice) return "Unknown";
+
+  const balance = getInvoiceBalance(invoiceId);
+
+  if (balance === 0) return "Paid";
+  if (balance < invoice.total_amount) return "Partially Paid";
+  return "Open";
+};
+
+export const getTenantOutstandingInvoices = (tenantId) =>
+  getTenantInvoices(tenantId).filter(
+    (invoice) => getInvoiceBalance(invoice.id) > 0
+  );
+
+  export const autoAllocateInvoices = (tenantId, paymentAmount) => {
+  const invoices = getTenantOutstandingInvoices(tenantId)
+    .sort(
+      (a, b) =>
+        new Date(a.due_date) - new Date(b.due_date)
+    );
+
+  let remaining = paymentAmount;
+  const allocationMap = {};
+
+  for (let invoice of invoices) {
+    const balance = getInvoiceBalance(invoice.id);
+    if (remaining <= 0) break;
+
+    const amount = Math.min(balance, remaining);
+    allocationMap[invoice.id] = amount;
+    remaining -= amount;
+  }
+
+  return allocationMap;
+};

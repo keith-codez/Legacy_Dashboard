@@ -1,3 +1,11 @@
 [
-  { "id": 1, "payment_no": "PAY-001", "tenant_id": 1, "date": "2025-02-06", "amount": 2500, "method": "Bank Transfer", "receipt_no": "R-001", "reference": "Feb Rent", "captured_by": "Finance" }
+  { "id": 1, "payment_no": "PAY-001", "tenant_id": 1, "date": "2025-02-01", "amount": 2500, "method": "Bank Transfer", "receipt_no": "R-001", "reference": "Feb Rent", "captured_by": "Finance" },
+  { "id": 2, "payment_no": "PAY-002", "tenant_id": 2, "date": "2025-02-02", "amount": 3200, "method": "Cash", "receipt_no": "R-002", "reference": "Feb Rent", "captured_by": "Admin" },
+  { "id": 3, "payment_no": "PAY-003", "tenant_id": 3, "date": "2025-02-03", "amount": 2800, "method": "Bank Transfer", "receipt_no": "R-003", "reference": "Jan Arrears", "captured_by": "Finance" },
+  { "id": 4, "payment_no": "PAY-004", "tenant_id": 4, "date": "2025-02-04", "amount": 4000, "method": "Ecocash", "receipt_no": "R-004", "reference": "Feb Rent", "captured_by": "Finance" },
+  { "id": 5, "payment_no": "PAY-005", "tenant_id": 5, "date": "2025-02-05", "amount": 3100, "method": "Bank Transfer", "receipt_no": "R-005", "reference": "Feb Rent", "captured_by": "Admin" },
+  { "id": 6, "payment_no": "PAY-006", "tenant_id": 6, "date": "2025-02-06", "amount": 4500, "method": "Cash", "receipt_no": "R-006", "reference": "Feb Rent", "captured_by": "Finance" },
+  { "id": 7, "payment_no": "PAY-007", "tenant_id": 7, "date": "2025-02-07", "amount": 2900, "method": "Bank Transfer", "receipt_no": "R-007", "reference": "Feb Rent", "captured_by": "Admin" },
+  { "id": 8, "payment_no": "PAY-008", "tenant_id": 8, "date": "2025-02-08", "amount": 3700, "method": "Ecocash", "receipt_no": "R-008", "reference": "Feb Rent", "captured_by": "Finance" },
+  { "id": 9, "payment_no": "PAY-009", "tenant_id": 9, "date": "2025-02-09", "amount": 2600, "method": "Bank Transfer", "receipt_no": "R-009", "reference": "Feb Rent", "captured_by": "Admin" }
 ]
