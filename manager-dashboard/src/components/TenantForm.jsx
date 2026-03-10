@@ -101,6 +101,13 @@ export default function TenantForm({
 
         {/* Actions */}
         <div className="flex justify-end gap-4 pt-4">
+            <button
+            type=""
+            className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition"
+          >
+            Cancel
+          </button>
+
           <button
             type="submit"
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
