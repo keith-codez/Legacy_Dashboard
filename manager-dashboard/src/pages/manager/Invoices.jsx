@@ -381,16 +381,6 @@ function InvoicesList() {
                     </button>
 
                     <button
-                      onClick={() =>
-                        navigate(`/manager/invoices/edit/${invoice.id}`)
-                      }
-                      className="flex items-center gap-2 w-full px-3 py-2 hover:bg-gray-100 text-sm"
-                    >
-                      <Pencil className="w-4 h-4" />
-                      Edit
-                    </button>
-
-                    <button
                       className="flex items-center gap-2 w-full px-3 py-2 hover:bg-gray-100 text-sm"
                     >
                       <Download className="w-4 h-4" />
