@@ -17,7 +17,21 @@ function InvoiceDetail() {
   const navigate = useNavigate();
 
   const invoice = invoices.find(i => i.id === Number(id));
-  const tenant = tenants.find(t => t.id === invoice.tenant_id);
+  if (!invoice) {
+  return (
+    <div className="p-8 text-center">
+      <h1 className="text-xl font-semibold">Invoice not found</h1>
+      <button
+        onClick={() => navigate(-1)}
+        className="mt-4 px-4 py-2 bg-gray-200 rounded"
+      >
+        Go Back
+      </button>
+    </div>
+  );
+}
+
+const tenant = tenants.find(t => t.id === invoice.tenant_id);
 
   const invoiceAllocations = allocations.filter(
     a => a.invoice_id === invoice.id

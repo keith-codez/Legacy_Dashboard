@@ -16,7 +16,7 @@ import PaymentsList from "./pages/manager/Payments";
 import AddPayment from "./pages/manager/AddPayment";  
 import InvoiceDetail from "./pages/manager/InvoiceDetail";
 import TenantStatement from "./pages/manager/TenantStatement";  
-
+import GenerateInvoice from "./pages/manager/GenerateInvoice";
 
 
 export default function App() {
@@ -38,6 +38,7 @@ export default function App() {
           <Route path="payments/new" element={<AddPayment />} />
           <Route path="invoices" element={<Invoices />} />
           <Route path="invoices/:id" element={<InvoiceDetail />} />
+          <Route path="invoices/new" element={<GenerateInvoice />} />
           <Route path="leases" element={<Leases />} />
           <Route path="units" element={<Units />} />
           <Route path="interactions" element={<Interactions />} />
