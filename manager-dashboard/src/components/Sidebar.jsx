@@ -1,14 +1,24 @@
 import { NavLink } from "react-router-dom";
+import { X } from "lucide-react";
 
 export default function Sidebar({ isOpen, onClose }) {
-  const baseClasses =
-    "block px-4 py-2 rounded transition-colors";
-
-  const activeClasses =
-    "bg-gray-200 font-semibold";
+  const baseClasses = "block px-4 py-2 rounded transition-colors";
+  const activeClasses = "bg-gray-200 font-semibold";
 
   const linkClasses = ({ isActive }) =>
     `${baseClasses} ${isActive ? activeClasses : "hover:bg-gray-100"}`;
+
+  // Links array to avoid repetition
+  const links = [
+    { to: "/manager", label: "Dashboard", end: true },
+    { to: "/manager/tenants", label: "Tenants" },
+    { to: "/manager/payments", label: "Payments" },
+    { to: "/manager/invoices", label: "Invoices" },
+    { to: "/manager/leases", label: "Leases" },
+    { to: "/manager/units", label: "Units" },
+    { to: "/manager/interactions", label: "Interactions" },
+    { to: "/manager/reports", label: "Statements & Reports" },
+  ];
 
   return (
     <>
@@ -33,43 +43,30 @@ export default function Sidebar({ isOpen, onClose }) {
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="p-6 font-bold text-lg border-b">
+          <div className="p-6 font-bold text-lg border-b flex justify-between items-center">
             Property Manager
+            {/* Close icon for mobile */}
+            <button
+              onClick={onClose}
+              className="lg:hidden p-1 rounded hover:bg-gray-200 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-2 text-sm">
-            <NavLink to="/manager" end className={linkClasses}>
-              Dashboard
-            </NavLink>
-
-            <NavLink to="/manager/tenants" className={linkClasses}>
-              Tenants
-            </NavLink>
-
-            <NavLink to="/manager/payments" className={linkClasses}>
-              Payments
-            </NavLink>
-
-            <NavLink to="/manager/invoices" className={linkClasses}>
-              Invoices
-            </NavLink>
-
-            <NavLink to="/manager/leases" className={linkClasses}>
-              Leases
-            </NavLink>
-
-            <NavLink to="/manager/units" className={linkClasses}>
-              Units
-            </NavLink>
-
-            <NavLink to="/manager/interactions" className={linkClasses}>
-              Interactions
-            </NavLink>
-
-            <NavLink to="/manager/reports" className={linkClasses}>
-              Statements & Reports
-            </NavLink>
+            {links.map((link) => (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                end={link.end}
+                className={linkClasses}
+                onClick={onClose} // auto-close sidebar on click
+              >
+                {link.label}
+              </NavLink>
+            ))}
           </nav>
 
           {/* Logout */}

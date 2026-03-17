@@ -48,7 +48,7 @@ function TenantDetails() {
   return (
     <div className="w-full min-h-screen bg-gray-50">
       <div
-        className="container mx-auto p-1 flex flex-col md:flex-row gap-6"
+        className="container mx-auto p-3 flex flex-col md:flex-row gap-6"
         style={{ minHeight: "calc(100vh - 100px)" }}
       >
         {/* LEFT PANEL */}

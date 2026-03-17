@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MoreVertical, ArrowUp, ArrowDown } from "lucide-react";
 import paymentsData from "../../data/payments.json";
@@ -13,6 +13,12 @@ function PaymentsList() {
     direction: "descending",
   });
   const [menuOpen, setMenuOpen] = useState(null);
+
+  useEffect(() => {
+    const handleClick = () => setMenuOpen(null);
+    window.addEventListener("click", handleClick);
+    return () => window.removeEventListener("click", handleClick);
+  }, []);
 
   const tenantMap = useMemo(() => {
     const map = {};
@@ -141,8 +147,36 @@ function PaymentsList() {
               key={payment.id}
               className="bg-white shadow rounded-xl p-4"
             >
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <h3 className="font-semibold">{payment.payment_no}</h3>
+
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuOpen(menuOpen === payment.id ? null : payment.id);
+                    }}
+                  >
+                    <MoreVertical className="w-5 h-5" />
+                  </button>
+
+                  {menuOpen === payment.id && (
+                    <div className="absolute right-0 mt-2 w-32 bg-white shadow rounded-lg border z-10">
+                      <button
+                        onClick={() => {
+                          navigate(`/manager/payments/${payment.id}`);
+                          setMenuOpen(null);
+                        }}
+                        className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                      >
+                        View
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-2 flex justify-between">
                 <span className="text-green-600 font-bold">
                   ${payment.amount.toLocaleString()}
                 </span>

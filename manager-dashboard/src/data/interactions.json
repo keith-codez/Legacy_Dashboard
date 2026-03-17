@@ -1,4 +1,18 @@
 [
   { "id": 1, "tenant_id": 1, "type": "Call", "subject": "Late utilities payment", "notes": "Tenant acknowledged invoice", "date": "2025-02-12", "recorded_by": "Admin", "priority": "Medium" },
-  { "id": 2, "tenant_id": 2, "type": "Email", "subject": "Lease renewal", "notes": "Sent renewal terms", "date": "2025-01-20", "recorded_by": "Manager", "priority": "Low" }
+  { "id": 2, "tenant_id": 2, "type": "Email", "subject": "Lease renewal", "notes": "Sent renewal terms", "date": "2025-01-20", "recorded_by": "Manager", "priority": "Low" },
+
+  { "id": 3, "tenant_id": 3, "type": "Visit", "subject": "Property inspection", "notes": "Minor repairs identified in kitchen", "date": "2025-02-15", "recorded_by": "Manager", "priority": "High" },
+  { "id": 4, "tenant_id": 1, "type": "Email", "subject": "Payment reminder", "notes": "Reminder sent for outstanding balance", "date": "2025-02-10", "recorded_by": "Admin", "priority": "Medium" },
+  { "id": 5, "tenant_id": 4, "type": "Call", "subject": "Noise complaint", "notes": "Tenant reported disturbance from сосед unit", "date": "2025-02-18", "recorded_by": "Admin", "priority": "High" },
+  { "id": 6, "tenant_id": 5, "type": "Email", "subject": "Invoice clarification", "notes": "Provided detailed breakdown of charges", "date": "2025-02-08", "recorded_by": "Finance", "priority": "Low" },
+  { "id": 7, "tenant_id": 2, "type": "Call", "subject": "Lease follow-up", "notes": "Tenant reviewing renewal terms", "date": "2025-02-14", "recorded_by": "Manager", "priority": "Medium" },
+  { "id": 8, "tenant_id": 3, "type": "Email", "subject": "Maintenance update", "notes": "Notified tenant of scheduled repairs", "date": "2025-02-16", "recorded_by": "Admin", "priority": "Low" },
+  { "id": 9, "tenant_id": 6, "type": "Call", "subject": "Rent payment delay", "notes": "Tenant requested extension", "date": "2025-02-11", "recorded_by": "Admin", "priority": "High" },
+  { "id": 10, "tenant_id": 7, "type": "Visit", "subject": "Unit viewing", "notes": "Prospective tenant toured property", "date": "2025-02-05", "recorded_by": "Agent", "priority": "Low" },
+  { "id": 11, "tenant_id": 4, "type": "Email", "subject": "Contract update", "notes": "Sent revised lease agreement", "date": "2025-02-13", "recorded_by": "Manager", "priority": "Medium" },
+  { "id": 12, "tenant_id": 5, "type": "Call", "subject": "Billing issue", "notes": "Tenant disputed water bill", "date": "2025-02-09", "recorded_by": "Finance", "priority": "High" },
+  { "id": 13, "tenant_id": 8, "type": "Email", "subject": "Welcome onboarding", "notes": "Shared move-in instructions", "date": "2025-02-01", "recorded_by": "Admin", "priority": "Low" },
+  { "id": 14, "tenant_id": 9, "type": "Visit", "subject": "Repair follow-up", "notes": "Confirmed issue resolved", "date": "2025-02-17", "recorded_by": "Manager", "priority": "Medium" },
+  { "id": 15, "tenant_id": 7, "type": "Call", "subject": "Deposit inquiry", "notes": "Explained refund timeline", "date": "2025-02-07", "recorded_by": "Admin", "priority": "Low" }
 ]
