@@ -88,3 +88,4 @@ export const getTenantOutstandingInvoices = (tenantId) =>
 
   return allocationMap;
 };
+

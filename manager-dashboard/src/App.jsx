@@ -6,7 +6,7 @@ import Dashboard from "./pages/manager/Dashboard";
 import TenantList from "./pages/manager/Tenants";
 import Invoices from "./pages/manager/Invoices";
 import Leases from "./pages/manager/Leases";
-import Units from "./pages/manager/Units";
+import Units from "./pages/manager/UnitsList";
 import Reports from "./pages/manager/Reports";
 import TenantDetails from "./pages/manager/TenantDetails";
 import EditTenant from "./pages/manager/EditTenant";
@@ -20,9 +20,10 @@ import PaymentDetail from "./pages/manager/PaymentDetails";
 import InteractionsList from "./pages/InteractionsList";
 import InteractionDetail from "./pages/manager/InteractionDetail";  
 import RecordInteraction from "./pages/manager/RecordInteraction";
-
-
-
+import UnitsList from "./pages/manager/UnitsList";
+import RecordUnit from "./pages/manager/RecordUnit";
+import UnitDetail from "./pages/manager/UnitDetail";
+import EditUnit from "./pages/manager/EditUnit";
 
 export default function App() {
   return (
@@ -46,7 +47,10 @@ export default function App() {
           <Route path="invoices/:id" element={<InvoiceDetail />} />
           <Route path="invoices/new" element={<GenerateInvoice />} />
           <Route path="leases" element={<Leases />} />
-          <Route path="units" element={<Units />} />
+          <Route path="units" element={<UnitsList />} />
+          <Route path="units/new" element={<RecordUnit />} />
+          <Route path="units/:id" element={<UnitDetail />} />
+          <Route path="units/:id/edit" element={<EditUnit />} />
           <Route path="interactions/new" element={<RecordInteraction />} />
           <Route path="interactions" element={<InteractionsList />} />
           <Route path="interactions/:id" element={<InteractionDetail />} />
