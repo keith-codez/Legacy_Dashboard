@@ -6,86 +6,177 @@ import payments from "../data/payments.json";
 import allocations from "../data/payment_allocations.json";
 import interactions from "../data/interactions.json";
 
+/* ---------------- CORE ---------------- */
+
 export const getTenantById = (id) =>
   tenants.find((t) => t.id === Number(id));
 
 export const getTenantLeases = (tenantId) =>
   leases.filter((l) => l.tenant_id === Number(tenantId));
 
-export const getTenantUnits = (tenantId) => {
-  const tenantLeases = getTenantLeases(tenantId);
-  return tenantLeases.map((l) =>
-    units.find((u) => u.id === l.unit_id)
+export const getTenantUnits = (tenantId) =>
+  getTenantLeases(tenantId)
+    .map((l) => units.find((u) => u.id === l.unit_id))
+    .filter(Boolean);
+
+/* ---------------- STATUS ---------------- */
+
+export const getTenantStatus = (tenantId) => {
+  const active = leases.find(
+    (l) =>
+      l.tenant_id === Number(tenantId) &&
+      l.status === "Active"
   );
+  return active ? "Active" : "Inactive";
 };
+
+/* ---------------- INVOICES ---------------- */
 
 export const getTenantInvoices = (tenantId) =>
   invoices.filter((i) => i.tenant_id === Number(tenantId));
 
-export const getTenantInteractions = (tenantId) =>
-  interactions.filter((i) => i.tenant_id === Number(tenantId));
+/* ---------------- PAYMENTS ---------------- */
 
-export const getTenantBalance = (tenantId) =>
-  getTenantInvoices(tenantId)
-    .reduce(
-      (sum, invoice) => sum + getInvoiceBalance(invoice.id),
-      0
+export const getTenantPayments = (tenantId) =>
+  payments.filter((p) => p.tenant_id === Number(tenantId));
+
+/* ---------------- SAFE ALLOCATIONS ---------------- */
+
+// CRITICAL FIX: never allow allocations > payment
+export const getValidAllocationsByPayment = (paymentId) => {
+  const payment = payments.find(p => p.id === Number(paymentId));
+  if (!payment) return [];
+
+  const paymentAllocations = allocations.filter(
+    a => a.payment_id === Number(paymentId)
+  );
+
+  let runningTotal = 0;
+
+  return paymentAllocations.map(a => {
+    const remaining = payment.amount - runningTotal;
+
+    const safeAmount = Math.max(
+      0,
+      Math.min(a.allocation_amount, remaining)
     );
 
+    runningTotal += safeAmount;
 
+    return {
+      ...a,
+      safe_amount: safeAmount
+    };
+  }).filter(a => a.safe_amount > 0);
+};
 
+/* ---------------- INVOICE CALCS ---------------- */
 
+export const getInvoicePaidAmount = (invoiceId) => {
+  return allocations
+    .filter(a => a.invoice_id === Number(invoiceId))
+    .reduce((sum, a) => {
+      const safe = getValidAllocationsByPayment(a.payment_id)
+        .find(x => x.id === a.id);
 
-export const getInvoiceAllocations = (invoiceId) =>
-  allocations.filter(a => a.invoice_id === Number(invoiceId));
-
-export const getInvoicePaidAmount = (invoiceId) =>
-  getInvoiceAllocations(invoiceId)
-    .reduce((sum, a) => sum + a.allocation_amount, 0);
+      return sum + (safe?.safe_amount || 0);
+    }, 0);
+};
 
 export const getInvoiceBalance = (invoiceId) => {
   const invoice = invoices.find(i => i.id === Number(invoiceId));
   if (!invoice) return 0;
 
-  const paid = getInvoicePaidAmount(invoiceId);
-  return invoice.total_amount - paid;
+  return invoice.total_amount - getInvoicePaidAmount(invoiceId);
 };
 
 export const getInvoiceStatus = (invoiceId) => {
   const invoice = invoices.find(i => i.id === Number(invoiceId));
   if (!invoice) return "Unknown";
 
-  const balance = getInvoiceBalance(invoiceId);
+  const paid = getInvoicePaidAmount(invoiceId);
 
-  if (balance === 0) return "Paid";
-  if (balance < invoice.total_amount) return "Partially Paid";
-  return "Open";
+  if (paid === 0) return "Open";
+  if (paid < invoice.total_amount) return "Partially Paid";
+  return "Paid";
 };
 
-export const getTenantOutstandingInvoices = (tenantId) =>
-  getTenantInvoices(tenantId).filter(
-    (invoice) => getInvoiceBalance(invoice.id) > 0
+/* ---------------- TENANT AGGREGATES ---------------- */
+
+export const getTenantTotalInvoiced = (tenantId) =>
+  getTenantInvoices(tenantId)
+    .reduce((sum, inv) => sum + inv.total_amount, 0);
+
+export const getTenantTotalPaid = (tenantId) => {
+  return getTenantPayments(tenantId)
+    .reduce((sum, p) => {
+      const valid = getValidAllocationsByPayment(p.id);
+      return sum + valid.reduce((s, a) => s + a.safe_amount, 0);
+    }, 0);
+};
+
+export const getTenantBalance = (tenantId) =>
+  getTenantTotalInvoiced(tenantId) - getTenantTotalPaid(tenantId);
+
+/* ---------------- INTERACTIONS ---------------- */
+
+export const getTenantInteractions = (tenantId) =>
+  interactions.filter(
+    (i) => i.tenant_id === Number(tenantId)
   );
 
-  export const autoAllocateInvoices = (tenantId, paymentAmount) => {
-  const invoices = getTenantOutstandingInvoices(tenantId)
-    .sort(
-      (a, b) =>
-        new Date(a.due_date) - new Date(b.due_date)
-    );
+/* ---------------- AGING ---------------- */
 
-  let remaining = paymentAmount;
-  const allocationMap = {};
+export const getInvoiceAging = (invoice) => {
+  const today = new Date("2025-02-10");
+  const due = new Date(invoice.due_date);
 
-  for (let invoice of invoices) {
-    const balance = getInvoiceBalance(invoice.id);
-    if (remaining <= 0) break;
+  const diff = Math.floor(
+    (today - due) / (1000 * 60 * 60 * 24)
+  );
 
-    const amount = Math.min(balance, remaining);
-    allocationMap[invoice.id] = amount;
-    remaining -= amount;
-  }
-
-  return allocationMap;
+  if (diff <= 0) return "Current";
+  if (diff <= 30) return "1-30 Days";
+  if (diff <= 60) return "31-60 Days";
+  return "60+ Days";
 };
 
+/* ---------------- OUTSTANDING INVOICES ---------------- */
+
+/**
+ * Returns all invoices for a tenant that are not fully paid.
+ * This is required by AddPayment.jsx
+ */
+export const getTenantOutstandingInvoices = (tenantId) => {
+  return getTenantInvoices(tenantId).filter(inv => getInvoiceBalance(inv.id) > 0);
+};
+
+
+/* ---------------- AUTO ALLOCATE ---------------- */
+
+/**
+ * Automatically allocates a payment amount across a tenant's outstanding invoices.
+ * Oldest invoices get paid first. Returns an object keyed by invoiceId with amounts.
+ */
+export const autoAllocateInvoices = (tenantId, paymentAmount) => {
+  const outstanding = getTenantOutstandingInvoices(tenantId)
+    .sort((a, b) => new Date(a.due_date) - new Date(b.due_date)); // oldest first
+
+  let remaining = paymentAmount;
+  const allocations = {};
+
+  for (const inv of outstanding) {
+    const balance = getInvoiceBalance(inv.id);
+    if (balance <= 0) continue;
+
+    const allocate = Math.min(balance, remaining);
+    if (allocate <= 0) break;
+
+    allocations[inv.id] = allocate;
+    remaining -= allocate;
+
+    if (remaining <= 0) break;
+  }
+
+  return allocations;
+};

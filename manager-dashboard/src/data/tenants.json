@@ -6,7 +6,6 @@
     "primary_email": "keith@lantern.co.zw",
     "phone": "+263771234567",
     "industry": "Technology",
-    "status": "Active",
     "created_at": "2025-11-01"
   },
   {
@@ -16,7 +15,6 @@
     "primary_email": "tariro@borrowdale.co.zw",
     "phone": "+263774567890",
     "industry": "Real Estate",
-    "status": "Active",
     "created_at": "2025-10-15"
   },
   {
@@ -26,7 +24,6 @@
     "primary_email": "simba@dairy.co.zw",
     "phone": "+263778999111",
     "industry": "Agriculture",
-    "status": "Suspended",
     "created_at": "2025-09-20"
   },
   {
@@ -36,7 +33,6 @@
     "primary_email": "martha@zimlogistics.co.zw",
     "phone": "+263773112233",
     "industry": "Transport",
-    "status": "Active",
     "created_at": "2025-08-05"
   },
   {
@@ -46,7 +42,6 @@
     "primary_email": "brian@ecofoods.co.zw",
     "phone": "+263774445566",
     "industry": "Food & Beverage",
-    "status": "Active",
     "created_at": "2025-07-12"
   },
   {
@@ -56,7 +51,6 @@
     "primary_email": "rudo@hararetech.co.zw",
     "phone": "+263775556677",
     "industry": "IT Services",
-    "status": "Active",
     "created_at": "2025-06-30"
   },
   {
@@ -66,7 +60,6 @@
     "primary_email": "tawanda@greenvalley.co.zw",
     "phone": "+263772223344",
     "industry": "Agriculture",
-    "status": "Active",
     "created_at": "2025-05-18"
   },
   {
@@ -76,7 +69,6 @@
     "primary_email": "faith@silverline.co.zw",
     "phone": "+263776667788",
     "industry": "Construction",
-    "status": "Active",
     "created_at": "2025-04-25"
   },
   {
@@ -86,7 +78,6 @@
     "primary_email": "tendai@urbanmarketing.co.zw",
     "phone": "+263771998877",
     "industry": "Marketing",
-    "status": "Active",
     "created_at": "2025-03-10"
   }
 ]

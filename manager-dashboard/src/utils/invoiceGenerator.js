@@ -1,88 +1,29 @@
 import invoices from "../data/invoices.json";
 import leases from "../data/leases.json";
+import units from "../data/units.json";
 
-/*
-Generate next invoice number
-*/
+/* Next invoice */
 export const getNextInvoiceNumber = () => {
-
   const maxId = Math.max(...invoices.map(i => i.id));
-
   const nextId = maxId + 1;
 
   return {
     id: nextId,
     invoice_no: `INV-${String(nextId).padStart(3,"0")}`
   };
-
 };
 
-
-/*
-Check duplicate invoice
-*/
-export const invoiceExists = (
-  tenantId,
-  type,
-  periodStart,
-  periodEnd
-) => {
-
-  return invoices.find(
+/* Duplicate check */
+export const invoiceExists = (tenantId, type, start, end) =>
+  invoices.find(
     inv =>
       inv.tenant_id === Number(tenantId) &&
       inv.type === type &&
-      inv.period_start === periodStart &&
-      inv.period_end === periodEnd
+      inv.period_start === start &&
+      inv.period_end === end
   );
 
-};
-
-
-/*
-Generate a single invoice
-*/
-export const generateInvoice = ({
-  tenant_id,
-  lease_id,
-  type,
-  period_start,
-  period_end,
-  issue_date,
-  due_date,
-  total_amount
-}) => {
-
-  const duplicate = invoiceExists(
-    tenant_id,
-    type,
-    period_start,
-    period_end
-  );
-
-  if (duplicate) return null;
-
-  const { id, invoice_no } = getNextInvoiceNumber();
-
-  return {
-    id,
-    invoice_no,
-    tenant_id,
-    lease_id,
-    type,
-    period_start,
-    period_end,
-    issue_date,
-    due_date,
-    total_amount
-  };
-
-};
-
-
-/*
-Auto generate monthly invoices for ALL active leases
-*/
+/* Auto generate */
 export const autoGenerateMonthlyInvoices = ({
   period_start,
   period_end,
@@ -91,26 +32,19 @@ export const autoGenerateMonthlyInvoices = ({
   type = "Rent"
 }) => {
 
-  const activeLeases = leases.filter(
-    l => l.status === "Active"
-  );
+  const activeLeases = leases.filter(l => l.status === "Active");
 
   const newInvoices = [];
 
   activeLeases.forEach(lease => {
 
-    const duplicate = invoiceExists(
-      lease.tenant_id,
-      type,
-      period_start,
-      period_end
-    );
-
-    if (duplicate) return;
+    if (invoiceExists(lease.tenant_id, type, period_start, period_end)) return;
 
     const { id, invoice_no } = getNextInvoiceNumber();
 
-    const invoice = {
+    const unit = units.find(u => u.id === lease.unit_id);
+
+    newInvoices.push({
       id,
       invoice_no,
       tenant_id: lease.tenant_id,
@@ -120,13 +54,10 @@ export const autoGenerateMonthlyInvoices = ({
       period_end,
       issue_date,
       due_date,
-      total_amount: lease.rent_amount
-    };
-
-    newInvoices.push(invoice);
+      total_amount: lease.rent_amount || unit?.base_rent || 0
+    });
 
   });
 
   return newInvoices;
-
 };

@@ -5,7 +5,7 @@ import Login from "./components/Login";
 import Dashboard from "./pages/manager/Dashboard";
 import TenantList from "./pages/manager/Tenants";
 import Invoices from "./pages/manager/Invoices";
-import Leases from "./pages/manager/Leases";
+import LeaseList from "./pages/manager/Leases";
 import Units from "./pages/manager/UnitsList";
 import Reports from "./pages/manager/Reports";
 import TenantDetails from "./pages/manager/TenantDetails";
@@ -46,7 +46,7 @@ export default function App() {
           <Route path="invoices" element={<Invoices />} />
           <Route path="invoices/:id" element={<InvoiceDetail />} />
           <Route path="invoices/new" element={<GenerateInvoice />} />
-          <Route path="leases" element={<Leases />} />
+          <Route path="leases" element={<LeaseList />} />
           <Route path="units" element={<UnitsList />} />
           <Route path="units/new" element={<RecordUnit />} />
           <Route path="units/:id" element={<UnitDetail />} />
