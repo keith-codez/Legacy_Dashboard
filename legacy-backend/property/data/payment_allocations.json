@@ -1,0 +1,20 @@
+[
+  { "id": 1, "payment_id": 1, "invoice_id": 1, "allocation_amount": 2500, "date": "2025-02-06" },
+  { "id": 2, "payment_id": 1, "invoice_id": 2, "allocation_amount": 200, "date": "2025-02-06" },
+
+  { "id": 3, "payment_id": 2, "invoice_id": 4, "allocation_amount": 3200, "date": "2025-02-02" },
+
+  { "id": 4, "payment_id": 3, "invoice_id": 5, "allocation_amount": 2800, "date": "2025-02-03" },
+
+  { "id": 5, "payment_id": 4, "invoice_id": 6, "allocation_amount": 4000, "date": "2025-02-04" },
+
+  { "id": 6, "payment_id": 5, "invoice_id": 7, "allocation_amount": 3100, "date": "2025-02-05" },
+
+  { "id": 7, "payment_id": 6, "invoice_id": 8, "allocation_amount": 4500, "date": "2025-02-06" },
+
+  { "id": 8, "payment_id": 7, "invoice_id": 9, "allocation_amount": 2900, "date": "2025-02-07" },
+
+  { "id": 9, "payment_id": 8, "invoice_id": 10, "allocation_amount": 3700, "date": "2025-02-08" },
+
+  { "id": 10, "payment_id": 9, "invoice_id": 11, "allocation_amount": 2600, "date": "2025-02-09" }
+]

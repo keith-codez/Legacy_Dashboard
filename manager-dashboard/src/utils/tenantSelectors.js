@@ -1,27 +1,19 @@
-import tenants from "../data/tenants.json";
-import leases from "../data/leases.json";
-import units from "../data/units.json";
-import invoices from "../data/invoices.json";
-import payments from "../data/payments.json";
-import allocations from "../data/payment_allocations.json";
-import interactions from "../data/interactions.json";
-
 /* ---------------- CORE ---------------- */
 
-export const getTenantById = (id) =>
+export const getTenantById = (tenants, id) =>
   tenants.find((t) => t.id === Number(id));
 
-export const getTenantLeases = (tenantId) =>
+export const getTenantLeases = (leases, tenantId) =>
   leases.filter((l) => l.tenant_id === Number(tenantId));
 
-export const getTenantUnits = (tenantId) =>
-  getTenantLeases(tenantId)
+export const getTenantUnits = (leases, units, tenantId) =>
+  getTenantLeases(leases, tenantId)
     .map((l) => units.find((u) => u.id === l.unit_id))
     .filter(Boolean);
 
 /* ---------------- STATUS ---------------- */
 
-export const getTenantStatus = (tenantId) => {
+export const getTenantStatus = (leases, tenantId) => {
   const active = leases.find(
     (l) =>
       l.tenant_id === Number(tenantId) &&
@@ -32,23 +24,21 @@ export const getTenantStatus = (tenantId) => {
 
 /* ---------------- INVOICES ---------------- */
 
-export const getTenantInvoices = (tenantId) =>
+export const getTenantInvoices = (invoices, tenantId) =>
   invoices.filter((i) => i.tenant_id === Number(tenantId));
 
 /* ---------------- PAYMENTS ---------------- */
 
-export const getTenantPayments = (tenantId) =>
+export const getTenantPayments = (payments, tenantId) =>
   payments.filter((p) => p.tenant_id === Number(tenantId));
 
 /* ---------------- SAFE ALLOCATIONS ---------------- */
 
-// CRITICAL FIX: never allow allocations > payment
-export const getValidAllocationsByPayment = (paymentId) => {
-  const payment = payments.find(p => p.id === Number(paymentId));
+export const getValidAllocationsByPayment = (payment, allocations) => {
   if (!payment) return [];
 
   const paymentAllocations = allocations.filter(
-    a => a.payment_id === Number(paymentId)
+    a => a.payment_id === payment.id
   );
 
   let runningTotal = 0;
@@ -72,29 +62,49 @@ export const getValidAllocationsByPayment = (paymentId) => {
 
 /* ---------------- INVOICE CALCS ---------------- */
 
-export const getInvoicePaidAmount = (invoiceId) => {
+export const getInvoicePaidAmount = (
+  invoiceId,
+  payments,
+  allocations
+) => {
   return allocations
     .filter(a => a.invoice_id === Number(invoiceId))
     .reduce((sum, a) => {
-      const safe = getValidAllocationsByPayment(a.payment_id)
+      const payment = payments.find(p => p.id === a.payment_id);
+
+      const safe = getValidAllocationsByPayment(payment, allocations)
         .find(x => x.id === a.id);
 
       return sum + (safe?.safe_amount || 0);
     }, 0);
 };
 
-export const getInvoiceBalance = (invoiceId) => {
-  const invoice = invoices.find(i => i.id === Number(invoiceId));
+export const getInvoiceBalance = (
+  invoice,
+  payments,
+  allocations
+) => {
   if (!invoice) return 0;
 
-  return invoice.total_amount - getInvoicePaidAmount(invoiceId);
+  return invoice.total_amount - getInvoicePaidAmount(
+    invoice.id,
+    payments,
+    allocations
+  );
 };
 
-export const getInvoiceStatus = (invoiceId) => {
-  const invoice = invoices.find(i => i.id === Number(invoiceId));
+export const getInvoiceStatus = (
+  invoice,
+  payments,
+  allocations
+) => {
   if (!invoice) return "Unknown";
 
-  const paid = getInvoicePaidAmount(invoiceId);
+  const paid = getInvoicePaidAmount(
+    invoice.id,
+    payments,
+    allocations
+  );
 
   if (paid === 0) return "Open";
   if (paid < invoice.total_amount) return "Partially Paid";
@@ -103,80 +113,97 @@ export const getInvoiceStatus = (invoiceId) => {
 
 /* ---------------- TENANT AGGREGATES ---------------- */
 
-export const getTenantTotalInvoiced = (tenantId) =>
-  getTenantInvoices(tenantId)
+export const getTenantTotalInvoiced = (tenantId, invoices) =>
+  invoices
+    .filter(inv => inv.tenant_id === tenantId)
     .reduce((sum, inv) => sum + inv.total_amount, 0);
 
-export const getTenantTotalPaid = (tenantId) => {
-  return getTenantPayments(tenantId)
+export const getTenantTotalPaid = (
+  tenantId,
+  payments,
+  allocations
+) => {
+  return payments
+    .filter(p => p.tenant_id === tenantId)
     .reduce((sum, p) => {
-      const valid = getValidAllocationsByPayment(p.id);
+      const valid = getValidAllocationsByPayment(p, allocations);
       return sum + valid.reduce((s, a) => s + a.safe_amount, 0);
     }, 0);
 };
 
-export const getTenantBalance = (tenantId) =>
-  getTenantTotalInvoiced(tenantId) - getTenantTotalPaid(tenantId);
+export const getTenantBalance = (
+  tenantId,
+  invoices,
+  payments,
+  allocations
+) =>
+  getTenantTotalInvoiced(tenantId, invoices) -
+  getTenantTotalPaid(tenantId, payments, allocations);
 
 /* ---------------- INTERACTIONS ---------------- */
 
-export const getTenantInteractions = (tenantId) =>
+export const getTenantInteractions = (interactions, tenantId) =>
   interactions.filter(
     (i) => i.tenant_id === Number(tenantId)
   );
 
-/* ---------------- AGING ---------------- */
+/* ---------------- OUTSTANDING ---------------- */
 
-export const getInvoiceAging = (invoice) => {
-  const today = new Date("2025-02-10");
-  const due = new Date(invoice.due_date);
+export const getTenantOutstandingInvoices = (
+  tenantId,
+  invoices,
+  payments,
+  allocations
+) => {
+  return invoices.filter(inv => {
+    if (inv.tenant_id !== tenantId) return false;
 
-  const diff = Math.floor(
-    (today - due) / (1000 * 60 * 60 * 24)
-  );
+    const balance = getInvoiceBalance(
+      inv,
+      payments,
+      allocations
+    );
 
-  if (diff <= 0) return "Current";
-  if (diff <= 30) return "1-30 Days";
-  if (diff <= 60) return "31-60 Days";
-  return "60+ Days";
+    return balance > 0;
+  });
 };
-
-/* ---------------- OUTSTANDING INVOICES ---------------- */
-
-/**
- * Returns all invoices for a tenant that are not fully paid.
- * This is required by AddPayment.jsx
- */
-export const getTenantOutstandingInvoices = (tenantId) => {
-  return getTenantInvoices(tenantId).filter(inv => getInvoiceBalance(inv.id) > 0);
-};
-
 
 /* ---------------- AUTO ALLOCATE ---------------- */
 
-/**
- * Automatically allocates a payment amount across a tenant's outstanding invoices.
- * Oldest invoices get paid first. Returns an object keyed by invoiceId with amounts.
- */
-export const autoAllocateInvoices = (tenantId, paymentAmount) => {
-  const outstanding = getTenantOutstandingInvoices(tenantId)
-    .sort((a, b) => new Date(a.due_date) - new Date(b.due_date)); // oldest first
+export const autoAllocateInvoices = (
+  tenantId,
+  paymentAmount,
+  invoices,
+  payments,
+  allocations
+) => {
+  const outstanding = getTenantOutstandingInvoices(
+    tenantId,
+    invoices,
+    payments,
+    allocations
+  ).sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
 
   let remaining = paymentAmount;
-  const allocations = {};
+  const result = {};
 
   for (const inv of outstanding) {
-    const balance = getInvoiceBalance(inv.id);
+    const balance = getInvoiceBalance(
+      inv,
+      payments,
+      allocations
+    );
+
     if (balance <= 0) continue;
 
     const allocate = Math.min(balance, remaining);
     if (allocate <= 0) break;
 
-    allocations[inv.id] = allocate;
+    result[inv.id] = allocate;
     remaining -= allocate;
 
     if (remaining <= 0) break;
   }
 
-  return allocations;
+  return result;
 };

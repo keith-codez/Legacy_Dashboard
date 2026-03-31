@@ -1,8 +1,14 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MoreVertical } from "lucide-react";
 
-import tenantsData from "../../data/tenants.json";
+import { getTenants } from "../../api/tenants";
+
+/* TEMP: until backend endpoints exist */
+import leases from "../../data/leases.json";
+import invoices from "../../data/invoices.json";
+import payments from "../../data/payments.json";
+import allocations from "../../data/payment_allocations.json";
 
 import {
   getTenantStatus,
@@ -12,7 +18,10 @@ import {
 function TenantList() {
   const navigate = useNavigate();
 
-  const [tenants] = useState(tenantsData);
+  const [tenants, setTenants] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(null);
 
@@ -21,6 +30,23 @@ function TenantList() {
     direction: "ascending",
   });
 
+  /* ---------------- FETCH ---------------- */
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await getTenants();
+        setTenants(data);
+      } catch (err) {
+        setError("Failed to load tenants");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  /* ---------------- SORT ---------------- */
   const handleSort = (key) => {
     let direction = "ascending";
     if (sortConfig.key === key && sortConfig.direction === "ascending") {
@@ -30,6 +56,8 @@ function TenantList() {
   };
 
   const sortedTenants = useMemo(() => {
+    if (!Array.isArray(tenants)) return [];
+    
     return [...tenants].sort((a, b) => {
       if (a[sortConfig.key] < b[sortConfig.key])
         return sortConfig.direction === "ascending" ? -1 : 1;
@@ -39,6 +67,7 @@ function TenantList() {
     });
   }, [tenants, sortConfig]);
 
+  /* ---------------- FILTER ---------------- */
   const filteredTenants = sortedTenants.filter((tenant) => {
     const q = searchQuery.toLowerCase();
     return (
@@ -49,17 +78,23 @@ function TenantList() {
     );
   });
 
+  /* ---------------- MENU ---------------- */
   const toggleMenu = (id) => {
     setMenuOpen(menuOpen === id ? null : id);
   };
 
   const closeMenu = () => setMenuOpen(null);
 
+  /* ---------------- STATUS STYLE ---------------- */
   const getStatusStyles = (status) => {
     return status === "Active"
       ? "bg-green-100 text-green-700"
       : "bg-gray-200 text-gray-600";
   };
+
+  /* ---------------- LOADING / ERROR ---------------- */
+  if (loading) return <div className="p-6">Loading tenants...</div>;
+  if (error) return <div className="p-6 text-red-500">{error}</div>;
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -89,23 +124,17 @@ function TenantList() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-4">
 
-        {/* Desktop Table */}
+        {/* Desktop */}
         <div className="hidden md:block bg-white rounded-lg shadow overflow-x-auto">
           <table className="w-full min-w-[900px]">
             <thead className="bg-gray-100 text-sm font-semibold">
               <tr>
-                <th onClick={() => handleSort("company_name")} className="p-4 cursor-pointer">
-                  Company
-                </th>
-                <th onClick={() => handleSort("primary_contact")} className="p-4 cursor-pointer">
-                  Contact
-                </th>
+                <th onClick={() => handleSort("company_name")} className="p-4 cursor-pointer">Company</th>
+                <th onClick={() => handleSort("primary_contact")} className="p-4 cursor-pointer">Contact</th>
                 <th className="p-4">Email</th>
                 <th className="p-4">Phone</th>
                 <th className="p-4">Balance</th>
-                <th onClick={() => handleSort("created_at")} className="p-4 cursor-pointer">
-                  Date Added
-                </th>
+                <th onClick={() => handleSort("created_at")} className="p-4 cursor-pointer">Date Added</th>
                 <th className="p-4">Status</th>
                 <th className="p-4 text-center"></th>
               </tr>
@@ -114,8 +143,13 @@ function TenantList() {
             <tbody>
               {filteredTenants.map((tenant) => {
 
-                const status = getTenantStatus(tenant.id);
-                const balance = getTenantBalance(tenant.id);
+                const status = getTenantStatus(leases, tenant.id);
+                const balance = getTenantBalance(
+                  tenant.id,
+                  invoices,
+                  payments,
+                  allocations
+                );
 
                 return (
                   <tr
@@ -189,14 +223,19 @@ function TenantList() {
         <div className="md:hidden space-y-4">
           {filteredTenants.map((tenant) => {
 
-            const status = getTenantStatus(tenant.id);
-            const balance = getTenantBalance(tenant.id);
+            const status = getTenantStatus(leases, tenant.id);
+            const balance = getTenantBalance(
+              tenant.id,
+              invoices,
+              payments,
+              allocations
+            );
 
             return (
               <div
                 key={tenant.id}
                 onClick={() => navigate(`/manager/tenants/${tenant.id}`)}
-                className="bg-white shadow rounded-xl p-4 relative"
+                className="bg-white shadow rounded-xl p-4"
               >
                 <h3 className="font-semibold text-lg">
                   {tenant.company_name}
