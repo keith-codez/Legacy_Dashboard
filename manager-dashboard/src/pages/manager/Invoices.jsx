@@ -138,7 +138,7 @@ function InvoicesList() {
 
       {/* Content */}
 
-      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-4">
+      <div className="flex-1 overflow-y-auto px-4 md:px-4 py-4">
 
         {/* Desktop Table */}
 

@@ -24,6 +24,8 @@ import UnitsList from "./pages/manager/UnitsList";
 import RecordUnit from "./pages/manager/RecordUnit";
 import UnitDetail from "./pages/manager/UnitDetail";
 import EditUnit from "./pages/manager/EditUnit";
+import LeaseDetail from "./pages/manager/LeaseDetail";
+
 
 export default function App() {
   return (
@@ -47,6 +49,7 @@ export default function App() {
           <Route path="invoices/:id" element={<InvoiceDetail />} />
           <Route path="invoices/new" element={<GenerateInvoice />} />
           <Route path="leases" element={<LeaseList />} />
+          <Route path="leases/:id" element={<LeaseDetail />} />
           <Route path="units" element={<UnitsList />} />
           <Route path="units/new" element={<RecordUnit />} />
           <Route path="units/:id" element={<UnitDetail />} />

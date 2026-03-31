@@ -5,6 +5,8 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
 import tenants from "../../data/tenants.json";
+import { getTenantStatus } from "../../utils/tenantSelectors";
+
 import units from "../../data/units.json";
 import invoices from "../../data/invoices.json";
 import allocations from "../../data/payment_allocations.json";
@@ -28,7 +30,7 @@ function Reports() {
   const totalCollected = allocations.reduce((sum, a) => sum + a.allocation_amount, 0);
   const outstanding = totalInvoiced - totalCollected;
 
-  const activeTenants = tenants.filter(t => t.status === "Active").length;
+  const activeTenants = getTenantStatus(t => t.status === "Active").length;
   const occupiedUnits = units.filter(u => u.status === "Occupied").length;
   const occupancyRate = Math.round((occupiedUnits / units.length) * 100);
 

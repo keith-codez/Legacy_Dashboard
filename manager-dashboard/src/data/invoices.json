@@ -17,5 +17,6 @@
 
   { "id": 10, "invoice_no": "INV-010", "tenant_id": 8, "lease_id": 8, "type": "Rent", "period_start": "2025-02-01", "period_end": "2025-02-28", "issue_date": "2025-02-01", "due_date": "2025-02-05", "total_amount": 3700 },
 
-  { "id": 11, "invoice_no": "INV-011", "tenant_id": 9, "lease_id": 9, "type": "Rent", "period_start": "2025-02-01", "period_end": "2025-02-28", "issue_date": "2025-02-01", "due_date": "2025-02-05", "total_amount": 2600 }
+  { "id": 11, "invoice_no": "INV-011", "tenant_id": 9, "lease_id": 9, "type": "Rent", "period_start": "2025-02-01", "period_end": "2025-02-28", "issue_date": "2025-02-01", "due_date": "2025-02-05", "total_amount": 2600 },
+  { "id": 12, "invoice_no": "INV-012", "tenant_id": 2, "lease_id": 2, "type": "Rent", "period_start": "2025-02-01", "period_end": "2025-02-28", "issue_date": "2025-02-01", "due_date": "2025-02-05", "total_amount": 1400 }
 ]

@@ -1,5 +1,10 @@
 [
   { "id": 1, "lease_number": "L-001", "tenant_id": 1, "unit_id": 1, "start_date": "2025-01-01", "end_date": "2025-12-31", "rent_amount": 2500, "deposit_amount": 5000, "billing_day": 1, "status": "Active" },
   { "id": 2, "lease_number": "L-002", "tenant_id": 2, "unit_id": 2, "start_date": "2024-07-01", "end_date": "2025-06-30", "rent_amount": 1900, "deposit_amount": 3800, "billing_day": 5, "status": "Active" },
-  { "id": 3, "lease_number": "L-003", "tenant_id": 3, "unit_id": 3, "start_date": "2024-01-01", "end_date": "2024-12-31", "rent_amount": 3200, "deposit_amount": 6400, "billing_day": 10, "status": "Expired" }
+  { "id": 3, "lease_number": "L-003", "tenant_id": 3, "unit_id": 3, "start_date": "2024-01-01", "end_date": "2024-12-31", "rent_amount": 3200, "deposit_amount": 6400, "billing_day": 10, "status": "Expired" },
+  { "id": 4, "lease_number": "L-004", "tenant_id": 4, "unit_id": 4, "start_date": "2025-03-01", "end_date": "2026-02-28", "rent_amount": 4000, "deposit_amount": 8000, "billing_day": 15, "status": "Active" },
+  { "id": 5, "lease_number": "L-005", "tenant_id": 5, "unit_id": 5, "start_date": "2024-11-01", "end_date": "2025-10-31", "rent_amount": 3100, "deposit_amount": 6200, "billing_day": 20, "status": "Active" },
+  { "id": 6, "lease_number": "L-006", "tenant_id": 6, "unit_id": 6, "start_date": "2025-05-01", "end_date": "2026-04-30", "rent_amount": 4500, "deposit_amount": 9000, "billing_day": 25, "status": "Active" },
+  { "id": 7, "lease_number": "L-007", "tenant_id": 7, "unit_id": 7, "start_date": "2024-09-01", "end_date": "2025-08-31", "rent_amount": 2900, "deposit_amount": 5800, "billing_day": 1, "status": "Active" },
+  { "id": 8, "lease_number": "L-008", "tenant_id": 8, "unit_id": 8, "start_date": "2025-02-01", "end_date": "2026-01-31", "rent_amount": 3700, "deposit_amount": 7400, "billing_day": 5, "status": "Expired" }
 ]

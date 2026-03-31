@@ -65,7 +65,7 @@ function UnitsList() {
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6">
 
         {/* Desktop Table */}
-        <div className="hidden lg:block bg-white rounded-xl shadow-sm overflow-hidden border">
+        <div className="hidden lg:block bg-white rounded-xl shadow-sm overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-100 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
               <tr>
