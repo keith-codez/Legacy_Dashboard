@@ -1,14 +1,17 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import tenantsData from "../../data/tenants.json";
+
 import {
-  getTenantOutstandingInvoices,
-  getInvoiceBalance,
-  autoAllocateInvoices
-} from "../../utils/tenantSelectors";
+  getTenants,
+  getOutstandingInvoices,
+  createPayment
+} from "../../api/api";
 
 function AddPayment() {
   const navigate = useNavigate();
+
+  const [tenants, setTenants] = useState([]);
+  const [outstandingInvoices, setOutstandingInvoices] = useState([]);
 
   const [formData, setFormData] = useState({
     tenant_id: "",
@@ -22,12 +25,25 @@ function AddPayment() {
 
   const [allocations, setAllocations] = useState({});
 
-  const paymentAmount = Number(formData.amount || 0);
+  /* ---------------- LOAD TENANTS ---------------- */
+  useEffect(() => {
+    getTenants().then(setTenants);
+  }, []);
 
-  const outstandingInvoices = useMemo(() => {
-    if (!formData.tenant_id) return [];
-    return getTenantOutstandingInvoices(formData.tenant_id);
+  /* ---------------- LOAD INVOICES ON TENANT SELECT ---------------- */
+  useEffect(() => {
+    if (!formData.tenant_id) {
+      setOutstandingInvoices([]);
+      return;
+    }
+
+    getOutstandingInvoices(formData.tenant_id)
+      .then(setOutstandingInvoices)
+      .catch(console.error);
+
   }, [formData.tenant_id]);
+
+  const paymentAmount = Number(formData.amount || 0);
 
   const totalAllocated = useMemo(() => {
     return Object.values(allocations).reduce(
@@ -43,16 +59,17 @@ function AddPayment() {
     paymentAmount > 0 &&
     remaining === 0;
 
+  /* ---------------- HANDLERS ---------------- */
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleAllocationChange = (invoiceId, value) => {
-    const invoiceBalance = getInvoiceBalance(invoiceId);
+  const handleAllocationChange = (invoiceId, value, balance) => {
     const numeric = Number(value);
 
     if (numeric < 0) return;
-    if (numeric > invoiceBalance) return;
+    if (numeric > balance) return;
 
     const newAllocations = {
       ...allocations,
@@ -68,31 +85,53 @@ function AddPayment() {
   };
 
   const handleAutoAllocate = () => {
-    if (!formData.tenant_id || paymentAmount <= 0) return;
+    let remainingAmount = paymentAmount;
+    const auto = {};
 
-    const auto = autoAllocateInvoices(
-      formData.tenant_id,
-      paymentAmount
-    );
+    for (const inv of outstandingInvoices) {
+      if (remainingAmount <= 0) break;
+
+      const balance = Number(inv.balance);
+
+      const allocate = Math.min(balance, remainingAmount);
+
+      auto[inv.id] = allocate;
+      remainingAmount -= allocate;
+    }
 
     setAllocations(auto);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!canSave) return;
 
-    const newPayment = {
-      ...formData,
+    const payload = {
+      tenant: formData.tenant_id,
       amount: paymentAmount,
-      allocations
+      date: formData.date,
+      method: formData.method,
+      reference: formData.reference,
+      receipt_no: formData.receipt_no,
+      captured_by: formData.captured_by,
+
+      allocations: Object.entries(allocations).map(([invoiceId, amount]) => ({
+        invoice_id: Number(invoiceId),
+        amount: Number(amount)
+      }))
     };
 
-    console.log("Payment Created:", newPayment);
-
-    navigate("/manager/payments");
+    try {
+      await createPayment(payload);
+      navigate("/manager/payments");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save payment");
+    }
   };
+
+  /* ---------------- UI (UNCHANGED) ---------------- */
 
   return (
     <div className="max-w-5xl mx-auto p-8 bg-white shadow rounded-xl">
@@ -100,7 +139,6 @@ function AddPayment() {
 
       <form onSubmit={handleSubmit} className="space-y-8">
 
-        {/* Payment Details */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
           <select
@@ -111,7 +149,7 @@ function AddPayment() {
             className="border p-3 rounded-lg"
           >
             <option value="">Select Tenant</option>
-            {tenantsData.map(t => (
+            {tenants.map(t => (
               <option key={t.id} value={t.id}>
                 {t.company_name}
               </option>
@@ -168,7 +206,6 @@ function AddPayment() {
 
         </div>
 
-        {/* Allocation Section */}
         {formData.tenant_id && (
           <div className="border-t pt-8">
 
@@ -193,55 +230,51 @@ function AddPayment() {
             ) : (
               <div className="space-y-4">
 
-                {outstandingInvoices.map(invoice => {
-                  const balance = getInvoiceBalance(invoice.id);
-
-                  return (
-                    <div
-                      key={invoice.id}
-                      className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center bg-gray-50 p-4 rounded-lg"
-                    >
-                      <div>
-                        <p className="font-medium">
-                          {invoice.invoice_no}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          Due {new Date(invoice.due_date).toLocaleDateString("en-GB")}
-                        </p>
-                      </div>
-
-                      <div className="font-semibold text-red-600">
-                        Balance: ${balance.toLocaleString()}
-                      </div>
-
-                      <div>
-                        <input
-                          type="number"
-                          min="0"
-                          max={balance}
-                          value={allocations[invoice.id] || ""}
-                          onChange={(e) =>
-                            handleAllocationChange(
-                              invoice.id,
-                              e.target.value
-                            )
-                          }
-                          placeholder="Allocate"
-                          className="w-full border p-2 rounded-lg"
-                        />
-                      </div>
-
-                      <div className="text-sm text-gray-500">
-                        Max: ${balance.toLocaleString()}
-                      </div>
+                {outstandingInvoices.map(invoice => (
+                  <div
+                    key={invoice.id}
+                    className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center bg-gray-50 p-4 rounded-lg"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {invoice.invoice_no}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Due {new Date(invoice.due_date).toLocaleDateString("en-GB")}
+                      </p>
                     </div>
-                  );
-                })}
+
+                    <div className="font-semibold text-red-600">
+                      Balance: ${Number(invoice.balance).toLocaleString()}
+                    </div>
+
+                    <div>
+                      <input
+                        type="number"
+                        min="0"
+                        max={invoice.balance}
+                        value={allocations[invoice.id] || ""}
+                        onChange={(e) =>
+                          handleAllocationChange(
+                            invoice.id,
+                            e.target.value,
+                            invoice.balance
+                          )
+                        }
+                        placeholder="Allocate"
+                        className="w-full border p-2 rounded-lg"
+                      />
+                    </div>
+
+                    <div className="text-sm text-gray-500">
+                      Max: ${Number(invoice.balance).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
 
               </div>
             )}
 
-            {/* Summary */}
             <div className="mt-6 p-4 bg-gray-100 rounded-lg">
               <div className="flex justify-between">
                 <span>Payment Amount:</span>
@@ -257,11 +290,7 @@ function AddPayment() {
               </div>
               <div className="flex justify-between">
                 <span>Remaining:</span>
-                <span
-                  className={`font-semibold ${
-                    remaining === 0 ? "text-green-600" : "text-red-600"
-                  }`}
-                >
+                <span className={`font-semibold ${remaining === 0 ? "text-green-600" : "text-red-600"}`}>
                   ${remaining.toLocaleString()}
                 </span>
               </div>
@@ -270,7 +299,6 @@ function AddPayment() {
           </div>
         )}
 
-        {/* Actions */}
         <div className="flex justify-end gap-4 pt-6 border-t">
           <button
             type="button"

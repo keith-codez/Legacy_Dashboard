@@ -1,18 +1,18 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { autoGenerateMonthlyInvoices } from "../../utils/invoiceGenerator";
-import tenantsData from "../../data/tenants.json";
 
-import {
-  getTenantInvoices,
-  getTenantLeases,
-  getInvoiceBalance,
-  getInvoiceStatus
-} from "../../utils/tenantSelectors";
+import { getTenants, getTenantLeases, createInvoice } from "../../api/api";
 
 function GenerateInvoice() {
 
   const navigate = useNavigate();
+
+  const [tenants, setTenants] = useState([]);
+  const [leases, setLeases] = useState([]);
+
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const [formData, setFormData] = useState({
     tenant_id: "",
@@ -25,90 +25,114 @@ function GenerateInvoice() {
     total_amount: ""
   });
 
-  const handleAutoGenerate = () => {
+  /* ---------------- LOAD TENANTS ---------------- */
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        const res = await getTenants();
+        setTenants(res);
+      } catch (e) {
+        setError("Failed to load tenants");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    const invoices = autoGenerateMonthlyInvoices({
-      period_start: "2025-03-01",
-      period_end: "2025-03-31",
-      issue_date: "2025-03-01",
-      due_date: "2025-03-05",
-      type: "Rent"
-    });
+    load();
+  }, []);
 
-    console.log("Auto Generated Invoices:", invoices);
+  /* ---------------- LOAD LEASES (FIXED FILTER RELIABILITY) ---------------- */
+  useEffect(() => {
+    const loadLeases = async () => {
 
-  };
+      if (!formData.tenant_id) {
+        setLeases([]);
+        return;
+      }
 
+      try {
+        const res = await getTenantLeases(formData.tenant_id);
+
+        // defensive cleanup: ensure only valid tenant leases
+        const filtered = res.filter(
+          l => Number(l.tenant) === Number(formData.tenant_id)
+        );
+
+        setLeases(filtered);
+
+        // auto-assign lease_id if only one exists
+        if (filtered.length === 1) {
+          setFormData(prev => ({
+            ...prev,
+            lease_id: filtered[0].id
+          }));
+        }
+
+      } catch (e) {
+        setError("Failed to load leases");
+      }
+
+    };
+
+    loadLeases();
+
+  }, [formData.tenant_id]);
+
+  /* ---------------- ACTIVE LEASE (SOURCE OF TRUTH FIXED) ---------------- */
   const activeLease = useMemo(() => {
+    if (!leases.length) return null;
 
-    if (!formData.tenant_id) return null;
-
-    const leases = getTenantLeases(formData.tenant_id);
-
-    return leases.find(l => l.status === "Active");
-
-  }, [formData.tenant_id]);
-
-  const tenantInvoices = useMemo(() => {
-
-    if (!formData.tenant_id) return [];
-
-    return getTenantInvoices(formData.tenant_id);
-
-  }, [formData.tenant_id]);
-
-  const duplicateInvoice = useMemo(() => {
-
-    if (!formData.period_start || !formData.period_end || !formData.tenant_id)
-      return null;
-
-    return tenantInvoices.find(
-      inv =>
-        inv.type === formData.type &&
-        inv.period_start === formData.period_start &&
-        inv.period_end === formData.period_end
+    return (
+      leases.find(l => l.status === "Active") ||
+      leases[0] ||
+      null
     );
+  }, [leases]);
 
-  }, [
-    tenantInvoices,
-    formData.period_start,
-    formData.period_end,
-    formData.type,
-    formData.tenant_id
-  ]);
-
+  /* ---------------- FORM HANDLER ---------------- */
   const handleChange = (e) => {
-
     const { name, value } = e.target;
 
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
-
   };
 
-  const handleSubmit = (e) => {
-
+  /* ---------------- SUBMIT ---------------- */
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
 
-    if (duplicateInvoice) return;
+    if (!activeLease) {
+      setError("No valid lease found for this tenant");
+      return;
+    }
 
-    const newInvoice = {
-      tenant_id: Number(formData.tenant_id),
-      lease_id: activeLease ? activeLease.id : null,
-      type: formData.type,
-      period_start: formData.period_start,
-      period_end: formData.period_end,
-      issue_date: formData.issue_date,
-      due_date: formData.due_date,
-      total_amount: Number(formData.total_amount)
-    };
+    try {
+      setSubmitting(true);
 
-    console.log("Invoice Generated:", newInvoice);
+      const payload = {
+        tenant: Number(formData.tenant_id),
+        lease: activeLease.id,
+        type: formData.type,
+        period_start: formData.period_start,
+        period_end: formData.period_end,
+        issue_date: formData.issue_date,
+        due_date: formData.due_date,
+        total_amount: Number(formData.total_amount)
+      };
 
-    navigate("/manager/invoices");
+      await createInvoice(payload);
 
+      navigate("/manager/invoices");
+
+    } catch (e) {
+      setError(e?.response?.data?.error || "Invoice creation failed");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const canGenerate =
@@ -118,14 +142,13 @@ function GenerateInvoice() {
     formData.issue_date &&
     formData.due_date &&
     formData.total_amount &&
-    !duplicateInvoice;
+    !submitting;
 
+  /* ---------------- UI (LABELS PRESERVED EXACTLY) ---------------- */
   return (
-
     <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 space-y-6">
 
       {/* Header */}
-
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 
         <div>
@@ -135,40 +158,34 @@ function GenerateInvoice() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleAutoGenerate}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
-        >
-          Auto Generate Rent
-        </button>
-
       </div>
 
       {/* Form */}
-
       <div className="bg-white shadow rounded-xl p-6">
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 text-red-700 rounded">
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
             {/* Tenant */}
-
             <div className="flex flex-col">
-              <label className="text-sm font-medium mb-1">
-                Tenant
-              </label>
+              <label className="text-sm font-medium mb-1">Tenant</label>
+
               <select
                 name="tenant_id"
                 value={formData.tenant_id}
                 onChange={handleChange}
-                required
                 className="border p-3 rounded-lg"
               >
                 <option value="">Select Tenant</option>
 
-                {tenantsData.map(t => (
+                {tenants.map(t => (
                   <option key={t.id} value={t.id}>
                     {t.company_name}
                   </option>
@@ -177,12 +194,21 @@ function GenerateInvoice() {
               </select>
             </div>
 
-            {/* Invoice Type */}
-
+            {/* Lease */}
             <div className="flex flex-col">
-              <label className="text-sm font-medium mb-1">
-                Invoice Type
-              </label>
+              <label className="text-sm font-medium mb-1">Active Lease</label>
+
+              <input
+                value={activeLease ? activeLease.lease_number : "No active lease"}
+                disabled
+                className="border p-3 rounded-lg bg-gray-50"
+              />
+            </div>
+
+            {/* Invoice Type */}
+            <div className="flex flex-col">
+              <label className="text-sm font-medium mb-1">Invoice Type</label>
+
               <select
                 name="type"
                 value={formData.type}
@@ -197,7 +223,6 @@ function GenerateInvoice() {
             </div>
 
             {/* Period Start */}
-
             <div className="flex flex-col">
               <label className="text-sm font-medium mb-1">
                 Billing Period Start
@@ -207,13 +232,11 @@ function GenerateInvoice() {
                 name="period_start"
                 value={formData.period_start}
                 onChange={handleChange}
-                required
                 className="border p-3 rounded-lg"
               />
             </div>
 
             {/* Period End */}
-
             <div className="flex flex-col">
               <label className="text-sm font-medium mb-1">
                 Billing Period End
@@ -223,13 +246,11 @@ function GenerateInvoice() {
                 name="period_end"
                 value={formData.period_end}
                 onChange={handleChange}
-                required
                 className="border p-3 rounded-lg"
               />
             </div>
 
             {/* Issue Date */}
-
             <div className="flex flex-col">
               <label className="text-sm font-medium mb-1">
                 Invoice Issue Date
@@ -239,13 +260,11 @@ function GenerateInvoice() {
                 name="issue_date"
                 value={formData.issue_date}
                 onChange={handleChange}
-                required
                 className="border p-3 rounded-lg"
               />
             </div>
 
             {/* Due Date */}
-
             <div className="flex flex-col">
               <label className="text-sm font-medium mb-1">
                 Payment Due Date
@@ -255,13 +274,11 @@ function GenerateInvoice() {
                 name="due_date"
                 value={formData.due_date}
                 onChange={handleChange}
-                required
                 className="border p-3 rounded-lg"
               />
             </div>
 
             {/* Amount */}
-
             <div className="flex flex-col md:col-span-2">
               <label className="text-sm font-medium mb-1">
                 Invoice Amount
@@ -269,38 +286,21 @@ function GenerateInvoice() {
               <input
                 type="number"
                 name="total_amount"
-                placeholder="Enter invoice amount"
                 value={formData.total_amount}
                 onChange={handleChange}
-                required
                 className="border p-3 rounded-lg"
               />
             </div>
 
           </div>
 
-          {duplicateInvoice && (
-
-            <div className="bg-red-50 border border-red-200 p-4 rounded-lg text-red-700 text-sm">
-
-              Invoice already exists for this tenant and billing period.
-
-              <div className="font-semibold mt-1">
-                {duplicateInvoice.invoice_no}
-              </div>
-
-            </div>
-
-          )}
-
           {/* Actions */}
-
-          <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t">
+          <div className="flex justify-end gap-3 pt-4 border-t">
 
             <button
               type="button"
               onClick={() => navigate("/manager/invoices")}
-              className="px-5 py-2 border rounded-lg hover:bg-gray-50"
+              className="px-5 py-2 border rounded-lg"
             >
               Cancel
             </button>
@@ -311,10 +311,10 @@ function GenerateInvoice() {
               className={`px-5 py-2 rounded-lg text-white ${
                 canGenerate
                   ? "bg-green-600 hover:bg-green-700"
-                  : "bg-gray-400 cursor-not-allowed"
+                  : "bg-gray-400"
               }`}
             >
-              Generate Invoice
+              {submitting ? "Generating..." : "Generate Invoice"}
             </button>
 
           </div>
@@ -324,9 +324,7 @@ function GenerateInvoice() {
       </div>
 
     </div>
-
   );
-
 }
 
 export default GenerateInvoice;

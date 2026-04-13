@@ -2,18 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MoreVertical } from "lucide-react";
 
-import { getTenants } from "../../api/tenants";
-
-/* TEMP: until backend endpoints exist */
-import leases from "../../data/leases.json";
-import invoices from "../../data/invoices.json";
-import payments from "../../data/payments.json";
-import allocations from "../../data/payment_allocations.json";
-
-import {
-  getTenantStatus,
-  getTenantBalance
-} from "../../utils/tenantSelectors";
+import { getTenants } from "../../api/api";
 
 function TenantList() {
   const navigate = useNavigate();
@@ -34,6 +23,7 @@ function TenantList() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setLoading(true);
         const data = await getTenants();
         setTenants(data);
       } catch (err) {
@@ -56,8 +46,6 @@ function TenantList() {
   };
 
   const sortedTenants = useMemo(() => {
-    if (!Array.isArray(tenants)) return [];
-    
     return [...tenants].sort((a, b) => {
       if (a[sortConfig.key] < b[sortConfig.key])
         return sortConfig.direction === "ascending" ? -1 : 1;
@@ -92,7 +80,7 @@ function TenantList() {
       : "bg-gray-200 text-gray-600";
   };
 
-  /* ---------------- LOADING / ERROR ---------------- */
+  /* ---------------- STATES ---------------- */
   if (loading) return <div className="p-6">Loading tenants...</div>;
   if (error) return <div className="p-6 text-red-500">{error}</div>;
 
@@ -141,125 +129,103 @@ function TenantList() {
             </thead>
 
             <tbody>
-              {filteredTenants.map((tenant) => {
+              {filteredTenants.map((tenant) => (
+                <tr
+                  key={tenant.id}
+                  onClick={() => navigate(`/manager/tenants/${tenant.id}`)}
+                  className="border-t hover:bg-gray-50 cursor-pointer"
+                >
+                  <td className="p-4 font-medium">{tenant.company_name}</td>
+                  <td className="p-4">{tenant.primary_contact}</td>
+                  <td className="p-4">{tenant.primary_email}</td>
+                  <td className="p-4">{tenant.phone}</td>
 
-                const status = getTenantStatus(leases, tenant.id);
-                const balance = getTenantBalance(
-                  tenant.id,
-                  invoices,
-                  payments,
-                  allocations
-                );
+                  <td className="p-4 font-semibold text-red-600">
+                    ${Number(tenant.balance || 0).toLocaleString()}
+                  </td>
 
-                return (
-                  <tr
-                    key={tenant.id}
-                    onClick={() => navigate(`/manager/tenants/${tenant.id}`)}
-                    className="border-t hover:bg-gray-50 cursor-pointer"
+                  <td className="p-4">
+                    {new Date(tenant.created_at).toLocaleDateString("en-GB")}
+                  </td>
+
+                  <td className="p-4">
+                    <span className={`px-2 py-1 rounded-full text-xs ${getStatusStyles(tenant.status)}`}>
+                      {tenant.status}
+                    </span>
+                  </td>
+
+                  <td
+                    className="p-4 text-center"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <td className="p-4 font-medium">{tenant.company_name}</td>
-                    <td className="p-4">{tenant.primary_contact}</td>
-                    <td className="p-4">{tenant.primary_email}</td>
-                    <td className="p-4">{tenant.phone}</td>
-
-                    <td className="p-4 font-semibold text-red-600">
-                      ${balance.toLocaleString()}
-                    </td>
-
-                    <td className="p-4">
-                      {new Date(tenant.created_at).toLocaleDateString("en-GB")}
-                    </td>
-
-                    <td className="p-4">
-                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusStyles(status)}`}>
-                        {status}
-                      </span>
-                    </td>
-
-                    <td
-                      className="p-4 text-center"
-                      onClick={(e) => e.stopPropagation()}
+                    <button
+                      onClick={() => toggleMenu(tenant.id)}
+                      className="p-2 hover:bg-gray-100 rounded"
                     >
-                      <button
-                        onClick={() => toggleMenu(tenant.id)}
-                        className="p-2 hover:bg-gray-100 rounded"
-                      >
-                        <MoreVertical className="w-5 h-5" />
-                      </button>
+                      <MoreVertical className="w-5 h-5" />
+                    </button>
 
-                      {menuOpen === tenant.id && (
-                        <div className="absolute right-8 mt-2 w-36 bg-white border rounded shadow">
-                          <button
-                            onClick={() => {
-                              closeMenu();
-                              navigate(`/manager/tenants/${tenant.id}`);
-                            }}
-                            className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                          >
-                            View
-                          </button>
+                    {menuOpen === tenant.id && (
+                      <div className="absolute right-8 mt-2 w-36 bg-white border rounded shadow">
+                        <button
+                          onClick={() => {
+                            closeMenu();
+                            navigate(`/manager/tenants/${tenant.id}`);
+                          }}
+                          className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                        >
+                          View
+                        </button>
 
-                          <button
-                            onClick={() => {
-                              closeMenu();
-                              navigate(`/manager/tenants/${tenant.id}/edit`);
-                            }}
-                            className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                          >
-                            Edit
-                          </button>
-                        </div>
-                      )}
-                    </td>
+                        <button
+                          onClick={() => {
+                            closeMenu();
+                            navigate(`/manager/tenants/${tenant.id}/edit`);
+                          }}
+                          className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    )}
+                  </td>
 
-                  </tr>
-                );
-              })}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
 
         {/* Mobile */}
         <div className="md:hidden space-y-4">
-          {filteredTenants.map((tenant) => {
+          {filteredTenants.map((tenant) => (
+            <div
+              key={tenant.id}
+              onClick={() => navigate(`/manager/tenants/${tenant.id}`)}
+              className="bg-white shadow rounded-xl p-4"
+            >
+              <h3 className="font-semibold text-lg">
+                {tenant.company_name}
+              </h3>
 
-            const status = getTenantStatus(leases, tenant.id);
-            const balance = getTenantBalance(
-              tenant.id,
-              invoices,
-              payments,
-              allocations
-            );
+              <p className="text-sm text-gray-600">
+                {tenant.primary_contact}
+              </p>
 
-            return (
-              <div
-                key={tenant.id}
-                onClick={() => navigate(`/manager/tenants/${tenant.id}`)}
-                className="bg-white shadow rounded-xl p-4"
-              >
-                <h3 className="font-semibold text-lg">
-                  {tenant.company_name}
-                </h3>
-
-                <p className="text-sm text-gray-600">
-                  {tenant.primary_contact}
+              <div className="mt-3 text-sm space-y-1">
+                <p><strong>Email:</strong> {tenant.primary_email}</p>
+                <p><strong>Phone:</strong> {tenant.phone}</p>
+                <p className="text-red-600 font-semibold">
+                  <strong>Balance:</strong> ${Number(tenant.balance || 0).toLocaleString()}
                 </p>
-
-                <div className="mt-3 text-sm space-y-1">
-                  <p><strong>Email:</strong> {tenant.primary_email}</p>
-                  <p><strong>Phone:</strong> {tenant.phone}</p>
-                  <p className="text-red-600 font-semibold">
-                    <strong>Balance:</strong> ${balance.toLocaleString()}
-                  </p>
-                </div>
-
-                <span className={`inline-block mt-2 px-2 py-1 text-xs rounded ${getStatusStyles(status)}`}>
-                  {status}
-                </span>
-
               </div>
-            );
-          })}
+
+              <span className={`inline-block mt-2 px-2 py-1 text-xs rounded ${getStatusStyles(tenant.status)}`}>
+                {tenant.status}
+              </span>
+
+            </div>
+          ))}
         </div>
 
       </div>

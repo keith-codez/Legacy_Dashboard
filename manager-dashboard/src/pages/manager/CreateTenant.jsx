@@ -1,27 +1,51 @@
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import TenantForm from "../../components/TenantForm";
-import tenants from "../../data/tenants.json";
+
+import { createTenant } from "../../api/api";
 
 export default function CreateTenant() {
   const navigate = useNavigate();
 
-  const handleCreate = (data) => {
-    const newTenant = {
-      id: Date.now(),
-      created_at: new Date().toISOString().split("T")[0],
-      ...data,
-    };
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-    console.log("New Tenant:", newTenant);
+  /* ---------------- CREATE ---------------- */
+  const handleCreate = async (formData) => {
+    try {
+      setLoading(true);
+      setError(null);
 
-    // Later: POST to API
-    // For now: simulate success
-    navigate("/manager/tenants");
+      const newTenant = await createTenant(formData);
+      console.log("NEW TENANT RESPONSE:", newTenant);
+
+      // Redirect to newly created tenant
+      navigate(`/manager/tenants/${newTenant.id}`);
+
+    } catch (err) {
+      console.error(err);
+      setError("Failed to create tenant");
+    } finally {
+      setLoading(false);
+    }
   };
 
+  /* ---------------- UI ---------------- */
   return (
     <div className="p-6">
-      <TenantForm mode="create" onSubmit={handleCreate} />
+
+      {error && (
+        <div className="mb-4 text-red-600 font-medium">
+          {error}
+        </div>
+      )}
+
+      <TenantForm
+        mode="create"
+        onSubmit={handleCreate}
+        loading={loading}
+      />
+
     </div>
   );
 }

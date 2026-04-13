@@ -11,7 +11,6 @@ export default function TenantForm({
     primary_email: "",
     phone: "",
     industry: "",
-    status: "Active",
   });
 
   useEffect(() => {
@@ -54,7 +53,7 @@ export default function TenantForm({
 
         {/* Primary Contact */}
         <InputField
-          label="Primary Contact"
+          label="Primary Contact Full Name"
           name="primary_contact"
           value={formData.primary_contact}
           onChange={handleChange}
@@ -85,19 +84,6 @@ export default function TenantForm({
           onChange={handleChange}
         />
 
-        {/* Status */}
-        <div>
-          <label className="block text-sm font-medium mb-2">Status</label>
-          <select
-            name="status"
-            value={formData.status}
-            onChange={handleChange}
-            className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-          >
-            <option value="Active">Active</option>
-            <option value="Suspended">Suspended</option>
-          </select>
-        </div>
 
         {/* Actions */}
         <div className="flex justify-end gap-4 pt-4">

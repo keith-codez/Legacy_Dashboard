@@ -2,8 +2,8 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MoreVertical } from "lucide-react";
 
-import interactionsData from "../data/interactions.json";
-import tenantsData from "../data/tenants.json";
+import interactionsData from "../../data/interactions.json";
+import tenantsData from "../../data/tenants.json";
 
 function InteractionsList() {
   const navigate = useNavigate();

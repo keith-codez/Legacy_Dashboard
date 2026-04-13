@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Building2,
   Mail,
@@ -8,140 +8,143 @@ import {
   Briefcase,
   MessageSquare,
 } from "lucide-react";
-
-import {
-  getTenantById,
-  getTenantLeases,
-  getTenantUnits,
-  getTenantInteractions,
-  getTenantInvoices,
-  getTenantPayments,
-  getTenantBalance,
-  getTenantTotalInvoiced,
-  getTenantTotalPaid,
-  getInvoicePaidAmount,
-  getInvoiceBalance,
-  getInvoiceStatus,
-  getTenantStatus,
-} from "../../utils/tenantSelectors";
+import { getTenantDetails } from "../../api/api";
 
 function TenantDetails() {
   const { id } = useParams();
+
+  const [data, setData] = useState(null);
   const [activeTab, setActiveTab] = useState("tenant");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
-  const tenant = useMemo(() => getTenantById(id), [id]);
-  const leases = useMemo(() => getTenantLeases(id), [id]);
-  const units = useMemo(() => getTenantUnits(id), [id]);
-  const interactions = useMemo(() => getTenantInteractions(id), [id]);
+  /* ---------------- FETCH ---------------- */
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await getTenantDetails(id);
+        setData(res);
+      } catch (err) {
+        setError("Failed to load tenant details");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const invoices = useMemo(() => getTenantInvoices(id), [id]);
-  const payments = useMemo(() => getTenantPayments(id), [id]);
+    fetchData();
+  }, [id]);
 
-  // Financials
-  const totalInvoiced = useMemo(() => getTenantTotalInvoiced(id), [id]);
-  const totalPaid = useMemo(() => getTenantTotalPaid(id), [id]);
-  const balance = useMemo(() => getTenantBalance(id), [id]);
+  if (loading) return <div className="p-6">Loading...</div>;
+  if (error) return <div className="p-6 text-red-500">{error}</div>;
+  if (!data) return null;
 
-  // Rent analytics: total actually paid towards invoices
-  const totalRentPaid = useMemo(() => totalPaid, [totalPaid]);
-
-  // Tenant status from leases
-  const tenantStatus = useMemo(() => getTenantStatus(id), [id]);
-
-  if (!tenant) {
-    return (
-      <div className="p-6">
-        <p className="text-red-500 font-semibold">Tenant not found.</p>
-      </div>
-    );
-  }
+  const { tenant, leases, interactions, invoices, summary } = data;
 
   return (
     <div className="w-full min-h-screen bg-gray-50">
-      <div className="container mx-auto p-3 flex flex-col md:flex-row gap-6" style={{ minHeight: "calc(100vh - 100px)" }}>
+      <div className="container mx-auto p-3 flex flex-col md:flex-row gap-6">
+
         {/* LEFT PANEL */}
-        <div className="w-full lg:w-1/3 flex flex-col gap-6">
-          <div className="w-full max-w-lg mx-auto">
+        <div className="w-full lg:w-1/3">
+          <div className="bg-white rounded-lg shadow">
+
             {/* Tabs */}
-            <div className="flex justify-between bg-blue-600 text-white font-semibold text-lg p-2 rounded-t-md">
+            <div className="flex bg-blue-600 text-white font-semibold">
               {["tenant", "billing", "documents"].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`flex-1 text-center py-2 ${
-                    activeTab === tab ? "bg-blue-800" : "bg-blue-600"
-                  } transition-colors duration-200 rounded-md`}
+                  className={`flex-1 py-2 ${
+                    activeTab === tab ? "bg-blue-800" : ""
+                  }`}
                 >
-                  {tab === "tenant" ? "Tenant" : tab === "billing" ? "Billing" : "Documents"}
+                  {tab}
                 </button>
               ))}
             </div>
 
-            {/* Tenant Info Content */}
-            <div className="p-4 bg-white rounded-b-lg shadow-md">
+            {/* Content */}
+            <div className="p-4 space-y-4">
+
               {activeTab === "tenant" && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Building2 className="w-5 h-5 text-blue-600" />
-                    <h2 className="text-xl font-bold">{tenant.company_name}</h2>
+                <>
+                  <div className="flex items-center gap-2">
+                    <Building2 />
+                    <h2 className="text-xl font-bold">
+                      {tenant.company_name}
+                    </h2>
                   </div>
 
-                  <div className="border-t border-gray-200 pt-4 space-y-4">
-                    <Row label="Primary Contact">{tenant.primary_contact}</Row>
-                    <Row label="Email" icon={<Mail className="w-4 h-4" />}>{tenant.primary_email}</Row>
-                    <Row label="Phone" icon={<Phone className="w-4 h-4" />}>{tenant.phone}</Row>
-                    <Row label="Industry" icon={<Briefcase className="w-4 h-4" />}>{tenant.industry}</Row>
-                    <Row label="Status">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        tenantStatus === "Active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                      }`}>
-                        {tenantStatus}
-                      </span>
-                    </Row>
-                    <Row label="Date Added" icon={<Calendar className="w-4 h-4" />}>
-                      {new Date(tenant.created_at).toLocaleDateString("en-GB")}
-                    </Row>
-                  </div>
-                </div>
+                  <Row label="Primary Contact">{tenant.primary_contact}</Row>
+                  <Row label="Email" icon={<Mail />}>{tenant.primary_email}</Row>
+                  <Row label="Phone" icon={<Phone />}>{tenant.phone}</Row>
+                  <Row label="Industry" icon={<Briefcase />}>{tenant.industry}</Row>
+
+                  <Row label="Status">
+                    <span className={`px-2 py-1 rounded text-xs ${
+                      summary.status === "Active"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-gray-200"
+                    }`}>
+                      {summary.status}
+                    </span>
+                  </Row>
+
+                  <Row label="Date Added" icon={<Calendar />}>
+                    {new Date(tenant.created_at).toLocaleDateString("en-GB")}
+                  </Row>
+                </>
               )}
 
-              {activeTab === "billing" && <div className="text-gray-600">Billing module coming soon.</div>}
-              {activeTab === "documents" && <div className="text-gray-600">Documents module coming soon.</div>}
+              {activeTab === "billing" && (
+                <div>Billing module coming soon</div>
+              )}
+
+              {activeTab === "documents" && (
+                <div>Documents module coming soon</div>
+              )}
+
             </div>
           </div>
         </div>
 
         {/* RIGHT PANEL */}
-        <div className="md:w-2/3 flex flex-col gap-6">
+        <div className="flex-1 space-y-6">
+
           {/* Analytics */}
-          <div className="p-6 bg-white rounded-2xl shadow-lg">
-            <h2 className="text-2xl font-semibold text-center mb-6 text-gray-700">Tenant Analytics</h2>
-            <div className="grid md:grid-cols-3 grid-cols-2 gap-4">
-              <Stat label="Total Units" value={units.length} bg="bg-blue-100" />
-              <Stat label="Total Rent Paid" value={`$${totalRentPaid.toLocaleString()}`} bg="bg-green-100" />
-              <Stat label="Outstanding Balance" value={`$${balance.toLocaleString()}`} bg="bg-yellow-100" />
+          <div className="bg-white p-6 rounded-xl shadow">
+            <h2 className="text-xl font-bold mb-4">Analytics</h2>
+
+            <div className="grid grid-cols-4 gap-4">
+              <Stat label="Units" value={summary.unit_count} />
+              <Stat label="Paid" value={`$${summary.total_paid}`} />
+              <Stat label="Balance" value={`$${summary.balance}`} />
+              <Stat label="Credit" value={`$${summary.credit || 0}`} />
             </div>
           </div>
 
-          {/* Lease History */}
-          <div className="bg-white p-6 rounded-xl shadow-md overflow-x-auto">
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">Lease History</h2>
-            <table className="w-full border-collapse">
-              <thead className="bg-gray-100">
+          {/* Leases */}
+          <div className="bg-white p-6 rounded-xl shadow">
+            <h2 className="font-bold mb-4">Leases</h2>
+
+            <table className="w-full">
+              <thead>
                 <tr>
-                  <th className="px-4 py-3 text-left">Unit</th>
-                  <th className="px-4 py-3 text-left">Start Date</th>
-                  <th className="px-4 py-3 text-left">End Date</th>
-                  <th className="px-4 py-3 text-left">Status</th>
+                  <th>Unit</th>
+                  <th>Start</th>
+                  <th>End</th>
+                  <th>Status</th>
                 </tr>
               </thead>
+
               <tbody>
                 {leases.map((l) => (
-                  <tr key={l.id} className="even:bg-gray-50">
-                    <td className="px-4 py-2">{l.unit_id || "—"}</td>
-                    <td className="px-4 py-2">{l.start_date}</td>
-                    <td className="px-4 py-2">{l.end_date}</td>
-                    <td className="px-4 py-2 font-semibold text-green-600">{l.status}</td>
+                  <tr key={l.id}>
+                    <td>{l.unit}</td>
+                    <td>{l.start_date}</td>
+                    <td>{l.end_date}</td>
+                    <td>{l.status}</td>
                   </tr>
                 ))}
               </tbody>
@@ -149,79 +152,77 @@ function TenantDetails() {
           </div>
 
           {/* Interactions */}
-          <div className="bg-white p-6 rounded-xl shadow-md">
-            <h2 className="text-2xl font-bold mb-4 text-gray-800 flex items-center gap-2">
-              <MessageSquare className="w-5 h-5" />
-              Interaction History
+          <div className="bg-white p-6 rounded-xl shadow">
+            <h2 className="font-bold mb-4 flex items-center gap-2">
+              <MessageSquare /> Interactions
             </h2>
-            <div className="hidden md:block">
-              <table className="w-full border-collapse">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="px-4 py-3 text-left">Date</th>
-                    <th className="px-4 py-3 text-left">Type</th>
-                    <th className="px-4 py-3 text-left">Summary</th>
-                    <th className="px-4 py-3 text-left">Logged By</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {interactions.map((i) => (
-                    <tr key={i.id} className="even:bg-gray-50">
-                      <td className="px-4 py-2">{i.date}</td>
-                      <td className="px-4 py-2">{i.type}</td>
-                      <td className="px-4 py-2">{i.subject || i.summary}</td>
-                      <td className="px-4 py-2">{i.recorded_by || i.logged_by}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="md:hidden flex space-x-4 overflow-x-auto pb-2">
-              {interactions.map((i) => (
-                <div key={i.id} className="min-w-[260px] bg-gray-50 border rounded-lg p-4 flex-shrink-0">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-semibold text-gray-700">{i.type}</span>
-                    <span className="text-xs text-gray-500">{i.date}</span>
-                  </div>
-                  <p className="text-sm text-gray-800 mb-3">{i.subject || i.summary}</p>
-                  <div className="text-xs text-gray-500">Logged by: {i.recorded_by || i.logged_by}</div>
-                </div>
-              ))}
-            </div>
+
+            {interactions.map((i) => (
+              <div key={i.id} className="border-b py-2">
+                <p className="font-semibold">{i.type}</p>
+                <p>{i.subject}</p>
+                <p className="text-sm text-gray-500">{i.date}</p>
+              </div>
+            ))}
           </div>
 
-          {/* Invoices & Payments */}
-          <div className="bg-white p-6 rounded-xl shadow-md overflow-x-auto">
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">Invoices & Payments</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice No</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.map((inv) => {
-                    const paid = getInvoicePaidAmount(inv.id);
-                    const invBalance = getInvoiceBalance(inv.id);
-                    const status = getInvoiceStatus(inv.id);
-                    return (
-                      <tr key={inv.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">{inv.invoice_no}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">${inv.total_amount.toLocaleString()}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">${paid.toLocaleString()}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">${invBalance.toLocaleString()}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{status}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+          {/* Invoices */}
+          <div className="bg-white p-6 rounded-xl shadow">
+            <h2 className="font-bold mb-4">Invoices</h2>
+
+            <table className="w-full text-sm">
+              <thead className="text-left text-gray-500 border-b">
+                <tr>
+                  <th className="py-2">Invoice</th>
+                  <th>Total</th>
+                  <th>Paid</th>
+                  <th>Balance</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {invoices.map((inv) => {
+                  const total = Number(inv.total_amount);
+                  const balance = Number(inv.balance);
+                  const paid = total - balance;
+
+                  return (
+                    <tr
+                      key={inv.id}
+                      onClick={() => navigate(`/invoices/${inv.id}`)}
+                      className="border-b hover:bg-gray-50 cursor-pointer transition"
+                    >
+                      <td className="py-3 font-medium">{inv.invoice_no}</td>
+
+                      <td>${total.toFixed(2)}</td>
+
+                      <td className="text-green-600">
+                        ${paid.toFixed(2)}
+                      </td>
+
+                      <td className="text-red-600">
+                        ${balance.toFixed(2)}
+                      </td>
+
+                      <td>
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-semibold ${
+                            inv.status === "Paid"
+                              ? "bg-green-100 text-green-700"
+                              : inv.status === "Partially Paid"
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
+                        >
+                          {inv.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
 
         </div>
@@ -231,17 +232,17 @@ function TenantDetails() {
 }
 
 /* Helpers */
-const Row = ({ label, icon, children }) => (
-  <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-4">
-    <span className="font-semibold flex items-center gap-2 shrink-0">{icon}{label}</span>
-    <span className="break-words text-right sm:text-right">{children}</span>
+const Row = ({ label, children }) => (
+  <div className="flex justify-between">
+    <span className="font-semibold">{label}</span>
+    <span>{children}</span>
   </div>
 );
 
-const Stat = ({ label, value, bg }) => (
-  <div className={`${bg} p-4 rounded-xl shadow`}>
-    <h3 className="text-sm font-medium text-gray-700">{label}</h3>
-    <p className="text-3xl font-bold text-gray-800">{value}</p>
+const Stat = ({ label, value }) => (
+  <div className="bg-gray-100 p-4 rounded">
+    <p className="text-sm">{label}</p>
+    <p className="text-xl font-bold">{value}</p>
   </div>
 );
 

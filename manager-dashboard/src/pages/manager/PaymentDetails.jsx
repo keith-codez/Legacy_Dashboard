@@ -1,60 +1,55 @@
-// =========================
-// 1. NEW: PaymentDetail.jsx (WITH LINKED INVOICES + CLICK NAV)
-// =========================
-
 import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 
-import payments from "../../data/payments.json";
-import tenants from "../../data/tenants.json";
-import invoices from "../../data/invoices.json";
-import allocations from "../../data/payment_allocations.json";
-
-import { getInvoiceStatus } from "../../utils/tenantSelectors";
+import { getPaymentDetails } from "../../api/api";
 
 function PaymentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const payment = payments.find(p => p.id === Number(id));
+  const [payment, setPayment] = useState(null);
+  const [tenant, setTenant] = useState(null);
+  const [allocations, setAllocations] = useState([]);
 
-  if (!payment) {
-    return (
-      <div className="p-8 text-center">
-        <h1 className="text-xl font-semibold">Payment not found</h1>
-        <button
-          onClick={() => navigate(-1)}
-          className="mt-4 px-4 py-2 bg-gray-200 rounded"
-        >
-          Go Back
-        </button>
-      </div>
-    );
-  }
+  const [totalAllocated, setTotalAllocated] = useState(0);
+  const [unallocated, setUnallocated] = useState(0);
 
-  const tenant = tenants.find(t => t.id === payment.tenant_id);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const paymentAllocations = allocations.filter(
-    a => a.payment_id === payment.id
-  );
+  /* ---------------- FETCH ---------------- */
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
 
-  const linkedInvoices = paymentAllocations.map(a => {
-    const invoice = invoices.find(i => i.id === a.invoice_id);
+        const data = await getPaymentDetails(id);
 
-    return {
-      ...a,
-      invoice_id: invoice?.id,
-      invoice_no: invoice?.invoice_no,
-      due_date: invoice?.due_date,
-      status: getInvoiceStatus(invoice?.id)
+        setPayment(data.payment);
+        setTenant(data.tenant);
+        setAllocations(data.allocations);
+
+        setTotalAllocated(Number(data.total_allocated));
+        setUnallocated(Number(data.unallocated));
+
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load payment details");
+      } finally {
+        setLoading(false);
+      }
     };
-  });
 
-  const totalAllocated = paymentAllocations.reduce(
-    (sum, a) => sum + a.allocation_amount,
-    0
-  );
+    fetchData();
+  }, [id]);
 
-  const unallocated = payment.amount - totalAllocated;
+  /* ---------------- STATES ---------------- */
+
+  if (loading) return <div className="p-6">Loading...</div>;
+  if (error) return <div className="p-6 text-red-500">{error}</div>;
+  if (!payment) return <div className="p-6">Payment not found</div>;
+
+  /* ---------------- UI ---------------- */
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
@@ -63,7 +58,7 @@ function PaymentDetail() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold">{payment.payment_no}</h1>
-          <p className="text-gray-500">{tenant?.company_name}</p>
+          <p className="text-gray-500">{tenant?.company_name || "—"}</p>
         </div>
 
         <button
@@ -74,83 +69,53 @@ function PaymentDetail() {
         </button>
       </div>
 
-      {/* META DETAILS */}
-      <div className="bg-white shadow rounded-lg p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* META */}
+      <div className="bg-white shadow rounded-lg p-6 grid md:grid-cols-2 gap-6">
 
-        <div>
-          <p className="text-sm text-gray-500">Payment Method</p>
-          <p className="font-semibold">{payment.method || "—"}</p>
-        </div>
+        <Meta label="Method" value={payment.method} />
+        <Meta label="Reference" value={payment.reference} />
+        <Meta label="Captured By" value={payment.captured_by || "System"} />
 
-        <div>
-          <p className="text-sm text-gray-500">Reference</p>
-          <p className="font-semibold">{payment.reference || "—"}</p>
-        </div>
-
-        <div>
-          <p className="text-sm text-gray-500">Captured By</p>
-          <p className="font-semibold">{payment.captured_by || "System"}</p>
-        </div>
-
-        <div>
-            <p className="text-sm text-gray-500">Payment Date</p>
-            <p className="font-semibold">
-                {new Date(payment.date).toLocaleDateString("en-GB")}
-            </p>
-        </div>
-
-        <div className="md:col-span-2">
-          <p className="text-sm text-gray-500">Notes</p>
-          <p className="font-semibold">
-            {payment.notes || "No notes provided"}
-          </p>
-        </div>
+        <Meta
+          label="Payment Date"
+          value={new Date(payment.date).toLocaleDateString("en-GB")}
+        />
 
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* SUMMARY */}
+      <div className="grid md:grid-cols-3 gap-4">
 
-        <div className="bg-white shadow rounded-lg p-4">
-          <p className="text-gray-500 text-sm">Payment Date</p>
-          <p className="font-semibold">
-            {new Date(payment.date).toLocaleDateString("en-GB")}
-          </p>
-        </div>
+        <Card
+          label="Amount Paid"
+          value={`$${Number(payment.amount).toLocaleString()}`}
+          green
+        />
 
-        <div className="bg-white shadow rounded-lg p-4">
-          <p className="text-gray-500 text-sm">Amount Paid</p>
-          <p className="font-semibold text-green-600 text-lg">
-            ${payment.amount.toLocaleString()}
-          </p>
-        </div>
+        <Card
+          label="Allocated"
+          value={`$${Number(totalAllocated).toLocaleString()}`}
+          blue
+        />
 
-        <div className="bg-white shadow rounded-lg p-4">
-          <p className="text-gray-500 text-sm">Allocated</p>
-          <p className="font-semibold text-blue-600">
-            ${totalAllocated.toLocaleString()}
-          </p>
-        </div>
-
-        <div className="bg-white shadow rounded-lg p-4">
-          <p className="text-gray-500 text-sm">Unallocated</p>
-          <p className="font-semibold text-red-600">
-            ${unallocated.toLocaleString()}
-          </p>
-        </div>
+        <Card
+          label="Unallocated"
+          value={`$${Number(unallocated).toLocaleString()}`}
+          red
+        />
 
       </div>
 
-      {/* LINKED INVOICES */}
+      {/* INVOICES */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
 
         <div className="p-6 border-b">
           <h2 className="font-semibold">Invoice Allocations</h2>
         </div>
 
-        {linkedInvoices.length === 0 ? (
+        {allocations.length === 0 ? (
           <div className="p-6 text-gray-500">
-            No invoices linked to this payment.
+            No allocations yet.
           </div>
         ) : (
           <table className="w-full text-sm">
@@ -164,26 +129,28 @@ function PaymentDetail() {
             </thead>
 
             <tbody>
-              {linkedInvoices.map(inv => (
+              {allocations.map((inv) => (
                 <tr
                   key={inv.id}
                   className="border-t hover:bg-gray-50 cursor-pointer"
-                  onClick={() => navigate(`/manager/invoices/${inv.invoice_id}`)}
+                  onClick={() =>
+                    navigate(`/manager/invoices/${inv.invoice_id}`)
+                  }
                 >
-                  <td className="p-4 font-medium text-blue-600 underline">
+                  <td className="p-4 text-blue-600 underline">
                     {inv.invoice_no}
                   </td>
 
                   <td className="p-4">
-                    {new Date(inv.due_date).toLocaleDateString("en-GB")}
+                    {inv.due_date
+                      ? new Date(inv.due_date).toLocaleDateString("en-GB")
+                      : "—"}
                   </td>
 
-                  <td className="p-4">
-                    {inv.status}
-                  </td>
+                  <td className="p-4">{inv.status}</td>
 
                   <td className="p-4 font-semibold">
-                    ${inv.allocation_amount.toLocaleString()}
+                    ${Number(inv.allocated_amount).toLocaleString()}
                   </td>
                 </tr>
               ))}
@@ -197,8 +164,32 @@ function PaymentDetail() {
   );
 }
 
+/* ---------------- COMPONENTS ---------------- */
+
+const Meta = ({ label, value }) => (
+  <div>
+    <p className="text-sm text-gray-500">{label}</p>
+    <p className="font-semibold">{value || "—"}</p>
+  </div>
+);
+
+const Card = ({ label, value, green, blue, red }) => (
+  <div className="bg-white shadow rounded-lg p-4">
+    <p className="text-gray-500 text-sm">{label}</p>
+    <p
+      className={`font-semibold text-lg ${
+        green
+          ? "text-green-600"
+          : blue
+          ? "text-blue-600"
+          : red
+          ? "text-red-600"
+          : ""
+      }`}
+    >
+      {value}
+    </p>
+  </div>
+);
+
 export default PaymentDetail;
-
-
-
-

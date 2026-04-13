@@ -17,7 +17,7 @@ import InvoiceDetail from "./pages/manager/InvoiceDetail";
 import TenantStatement from "./pages/manager/TenantStatement";  
 import GenerateInvoice from "./pages/manager/GenerateInvoice";
 import PaymentDetail from "./pages/manager/PaymentDetails"; 
-import InteractionsList from "./pages/InteractionsList";
+import InteractionsList from "./pages/manager/InteractionsList";
 import InteractionDetail from "./pages/manager/InteractionDetail";  
 import RecordInteraction from "./pages/manager/RecordInteraction";
 import UnitsList from "./pages/manager/UnitsList";

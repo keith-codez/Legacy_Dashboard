@@ -1,31 +1,43 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MoreVertical, ArrowUp, ArrowDown } from "lucide-react";
-import paymentsData from "../../data/payments.json";
-import tenantsData from "../../data/tenants.json";
+
+import { getPayments } from "../../api/api";
 
 function PaymentsList() {
   const navigate = useNavigate();
-  const [payments] = useState(paymentsData);
+
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [searchQuery, setSearchQuery] = useState("");
+  const [menuOpen, setMenuOpen] = useState(null);
+
   const [sortConfig, setSortConfig] = useState({
     key: "date",
     direction: "descending",
   });
-  const [menuOpen, setMenuOpen] = useState(null);
 
+  /* ---------------- FETCH ---------------- */
   useEffect(() => {
-    const handleClick = () => setMenuOpen(null);
-    window.addEventListener("click", handleClick);
-    return () => window.removeEventListener("click", handleClick);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const data = await getPayments();
+        setPayments(data);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load payments");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
-  const tenantMap = useMemo(() => {
-    const map = {};
-    tenantsData.forEach(t => map[t.id] = t.company_name);
-    return map;
-  }, []);
-
+  /* ---------------- SORT ---------------- */
   const handleSort = (key) => {
     let direction = "ascending";
     if (sortConfig.key === key && sortConfig.direction === "ascending") {
@@ -44,13 +56,15 @@ function PaymentsList() {
     });
   }, [payments, sortConfig]);
 
-  const filteredPayments = sortedPayments.filter((payment) => {
-    const query = searchQuery.toLowerCase();
+  /* ---------------- FILTER ---------------- */
+  const filteredPayments = sortedPayments.filter((p) => {
+    const q = searchQuery.toLowerCase();
+
     return (
-      payment.payment_no.toLowerCase().includes(query) ||
-      tenantMap[payment.tenant_id]?.toLowerCase().includes(query) ||
-      payment.method.toLowerCase().includes(query) ||
-      payment.reference.toLowerCase().includes(query)
+      p.payment_no?.toLowerCase().includes(q) ||
+      p.tenant_name?.toLowerCase().includes(q) ||
+      p.method?.toLowerCase().includes(q) ||
+      p.reference?.toLowerCase().includes(q)
     );
   });
 
@@ -61,6 +75,11 @@ function PaymentsList() {
       : <ArrowDown className="inline w-4 h-4 ml-1" />;
   };
 
+  /* ---------------- STATES ---------------- */
+  if (loading) return <div className="p-6">Loading payments...</div>;
+  if (error) return <div className="p-6 text-red-500">{error}</div>;
+
+  /* ---------------- UI ---------------- */
   return (
     <div className="w-full h-full flex flex-col">
 
@@ -72,14 +91,14 @@ function PaymentsList() {
           <input
             type="text"
             placeholder="Search payments..."
-            className="border border-gray-300 px-4 py-2 rounded-lg w-full md:w-72"
+            className="border px-4 py-2 rounded-lg w-full md:w-72"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
 
           <button
             onClick={() => navigate("/manager/payments/new")}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+            className="bg-green-600 text-white px-4 py-2 rounded-lg"
           >
             Add Payment
           </button>
@@ -89,10 +108,10 @@ function PaymentsList() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-4">
 
-        {/* Desktop Table */}
+        {/* Desktop */}
         <div className="hidden md:block bg-white rounded-lg shadow overflow-x-auto">
           <table className="w-full min-w-[900px]">
-            <thead className="bg-gray-100 text-left text-sm font-semibold">
+            <thead className="bg-gray-100 text-sm font-semibold">
               <tr>
                 <th onClick={() => handleSort("payment_no")} className="p-4 cursor-pointer">
                   Payment {renderSortArrow("payment_no")}
@@ -111,24 +130,21 @@ function PaymentsList() {
             </thead>
 
             <tbody>
-              {filteredPayments.map((payment) => (
-                <tr
-                  key={payment.id}
-                  className="border-t hover:bg-gray-50 transition"
-                >
-                  <td className="p-4 font-medium">{payment.payment_no}</td>
-                  <td className="p-4">{tenantMap[payment.tenant_id]}</td>
+              {filteredPayments.map((p) => (
+                <tr key={p.id} className="border-t hover:bg-gray-50">
+                  <td className="p-4 font-medium">{p.payment_no}</td>
+                  <td className="p-4">{p.tenant_name}</td>
                   <td className="p-4">
-                    {new Date(payment.date).toLocaleDateString("en-GB")}
+                    {new Date(p.date).toLocaleDateString("en-GB")}
                   </td>
                   <td className="p-4 font-semibold text-green-600">
-                    ${payment.amount.toLocaleString()}
+                    ${Number(p.amount).toLocaleString()}
                   </td>
-                  <td className="p-4">{payment.method}</td>
-                  <td className="p-4">{payment.reference}</td>
+                  <td className="p-4">{p.method}</td>
+                  <td className="p-4">{p.reference}</td>
                   <td className="p-4 text-center">
                     <button
-                      onClick={() => navigate(`/manager/payments/${payment.id}`)}
+                      onClick={() => navigate(`/manager/payments/${p.id}`)}
                       className="text-blue-600 hover:underline"
                     >
                       View
@@ -140,31 +156,38 @@ function PaymentsList() {
           </table>
         </div>
 
-        {/* Mobile Cards */}
+        {/* Mobile */}
         <div className="md:hidden space-y-4">
-          {filteredPayments.map((payment) => (
+          {filteredPayments.map((p) => (
             <div
-              key={payment.id}
-              className="bg-white shadow rounded-xl p-4"
+              key={p.id}
+              className="bg-white shadow rounded-xl p-4 relative"
             >
-              <div className="flex justify-between items-center">
-                <h3 className="font-semibold">{payment.payment_no}</h3>
+              {/* Top row */}
+              <div className="flex justify-between items-start">
+                <h3 className="font-semibold">{p.payment_no}</h3>
 
+                {/* 3 DOT MENU */}
                 <div className="relative">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setMenuOpen(menuOpen === payment.id ? null : payment.id);
+                      setMenuOpen(menuOpen === p.id ? null : p.id);
                     }}
+                    className="p-1 rounded hover:bg-gray-100"
                   >
                     <MoreVertical className="w-5 h-5" />
                   </button>
 
-                  {menuOpen === payment.id && (
-                    <div className="absolute right-0 mt-2 w-32 bg-white shadow rounded-lg border z-10">
+                  {/* DROPDOWN */}
+                  {menuOpen === p.id && (
+                    <div
+                      className="absolute right-0 mt-2 w-36 bg-white border rounded-lg shadow-lg z-20"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <button
                         onClick={() => {
-                          navigate(`/manager/payments/${payment.id}`);
+                          navigate(`/manager/payments/${p.id}`);
                           setMenuOpen(null);
                         }}
                         className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
@@ -176,17 +199,17 @@ function PaymentsList() {
                 </div>
               </div>
 
-              <div className="mt-2 flex justify-between">
-                <span className="text-green-600 font-bold">
-                  ${payment.amount.toLocaleString()}
-                </span>
-              </div>
+              {/* Amount */}
+              <p className="mt-2 text-green-600 font-bold">
+                ${Number(p.amount).toLocaleString()}
+              </p>
 
-              <div className="mt-2 text-sm text-gray-600 space-y-1">
-                <p><strong>Tenant:</strong> {tenantMap[payment.tenant_id]}</p>
-                <p><strong>Date:</strong> {new Date(payment.date).toLocaleDateString("en-GB")}</p>
-                <p><strong>Method:</strong> {payment.method}</p>
-                <p><strong>Reference:</strong> {payment.reference}</p>
+              {/* Details */}
+              <div className="mt-2 text-sm space-y-1">
+                <p><strong>Tenant:</strong> {p.tenant_name}</p>
+                <p><strong>Date:</strong> {new Date(p.date).toLocaleDateString("en-GB")}</p>
+                <p><strong>Method:</strong> {p.method}</p>
+                <p><strong>Reference:</strong> {p.reference}</p>
               </div>
             </div>
           ))}

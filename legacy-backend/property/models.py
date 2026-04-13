@@ -40,9 +40,11 @@ class Lease(models.Model):
 
 
 class Invoice(models.Model):
-    invoice_no = models.CharField(max_length=50)
+    invoice_no = models.CharField(max_length=50, unique=True, blank=True)
+
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
     lease = models.ForeignKey(Lease, on_delete=models.CASCADE)
+
     type = models.CharField(max_length=50)
     period_start = models.DateField()
     period_end = models.DateField()
@@ -53,9 +55,26 @@ class Invoice(models.Model):
     def __str__(self):
         return self.invoice_no
 
+    def save(self, *args, **kwargs):
+        # Only generate if not provided
+        if not self.invoice_no:
+            last_invoice = Invoice.objects.order_by("-id").first()
+
+            if last_invoice and last_invoice.invoice_no:
+                try:
+                    last_number = int(last_invoice.invoice_no.split("-")[1])
+                except Exception:
+                    last_number = 0
+            else:
+                last_number = 0
+
+            self.invoice_no = f"INV-{last_number + 1:03d}"
+
+        super().save(*args, **kwargs)
+
 
 class Payment(models.Model):
-    payment_no = models.CharField(max_length=50)
+    payment_no = models.CharField(max_length=20, unique=True, blank=True)
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
     date = models.DateField()
     amount = models.DecimalField(max_digits=10, decimal_places=2)
@@ -66,14 +85,37 @@ class Payment(models.Model):
 
     def __str__(self):
         return self.payment_no
+    
+    def save(self, *args, **kwargs):
+        if not self.payment_no:
+            last_payment = Payment.objects.order_by("-id").first()
+
+            if last_payment and last_payment.payment_no:
+                last_number = int(last_payment.payment_no.split("-")[1])
+            else:
+                last_number = 0
+
+            self.payment_no = f"PAY-{last_number + 1:03d}"
+
+        super().save(*args, **kwargs)
 
 
 class PaymentAllocation(models.Model):
-    payment = models.ForeignKey(Payment, on_delete=models.CASCADE)
-    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE)
+    payment = models.ForeignKey("Payment", on_delete=models.CASCADE)
+    invoice = models.ForeignKey("Invoice", on_delete=models.CASCADE)
     allocation_amount = models.DecimalField(max_digits=10, decimal_places=2)
     date = models.DateField()
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["payment", "invoice"],
+                name="unique_payment_invoice"
+            )
+        ]
+    def __str__(self):
+        return f"{self.payment.payment_no} -> {self.invoice.invoice_no} ({self.allocation_amount})"
+    
 
 class Interaction(models.Model):
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
@@ -83,3 +125,5 @@ class Interaction(models.Model):
     date = models.DateField()
     recorded_by = models.CharField(max_length=100)
     priority = models.CharField(max_length=50)
+
+
