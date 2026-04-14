@@ -83,9 +83,10 @@ export const getOutstandingInvoices = async (tenantId) => {
   return res.data;
 };
 
+
 export const getInvoiceAllocations = async (id) => {
-  const res = await API.get(`/invoices/${id}/allocations/`);
-  return res.data;
+  const res = await API.get(`/allocations/?invoice=${id}`);
+  return res.data.results || res.data;
 };
 
 export const getInvoice = async (id) => {
@@ -102,3 +103,23 @@ export const createInvoice = async (payload) => {
   const res = await API.post("/invoices/", payload);
   return res.data;
 };
+
+export const getUnits = async () => {
+  const res = await API.get("/units/");
+  return res.data.results || res.data;
+};
+export const getLease = async (id) => {
+  const res = await API.get(`/leases/${id}/`);
+  return res.data;
+};
+
+export const getLeaseDetails = async (id) => {
+  const res = await API.get(`/leases/${id}/details/`);
+  return res.data;
+};
+
+export const createLease = async (payload) => {
+  const res = await API.post("/leases/", payload);
+  return res.data;
+};
+

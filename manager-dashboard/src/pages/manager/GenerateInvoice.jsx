@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { getTenants, getTenantLeases, createInvoice } from "../../api/api";
 
 function GenerateInvoice() {
-
   const navigate = useNavigate();
 
   const [tenants, setTenants] = useState([]);
@@ -32,7 +31,7 @@ function GenerateInvoice() {
         setLoading(true);
         const res = await getTenants();
         setTenants(res);
-      } catch (e) {
+      } catch {
         setError("Failed to load tenants");
       } finally {
         setLoading(false);
@@ -42,55 +41,68 @@ function GenerateInvoice() {
     load();
   }, []);
 
-  /* ---------------- LOAD LEASES (FIXED FILTER RELIABILITY) ---------------- */
+  /* ---------------- LOAD LEASES ---------------- */
   useEffect(() => {
     const loadLeases = async () => {
-
       if (!formData.tenant_id) {
         setLeases([]);
+        setFormData(prev => ({ ...prev, lease_id: "" }));
         return;
       }
 
       try {
         const res = await getTenantLeases(formData.tenant_id);
 
-        // defensive cleanup: ensure only valid tenant leases
         const filtered = res.filter(
           l => Number(l.tenant) === Number(formData.tenant_id)
         );
 
         setLeases(filtered);
 
-        // auto-assign lease_id if only one exists
+        // auto-select first lease only if none selected
         if (filtered.length === 1) {
           setFormData(prev => ({
             ...prev,
-            lease_id: filtered[0].id
+            lease_id: String(filtered[0].id)
           }));
+        } else {
+          setFormData(prev => ({ ...prev, lease_id: "" }));
         }
 
-      } catch (e) {
+      } catch {
         setError("Failed to load leases");
       }
-
     };
 
     loadLeases();
-
   }, [formData.tenant_id]);
 
-  /* ---------------- ACTIVE LEASE (SOURCE OF TRUTH FIXED) ---------------- */
-  const activeLease = useMemo(() => {
-    if (!leases.length) return null;
+  /* ---------------- SELECTED LEASE ---------------- */
+  const selectedLease = useMemo(() => {
+    return leases.find(l => l.id === Number(formData.lease_id)) || null;
+  }, [leases, formData.lease_id]);
 
-    return (
-      leases.find(l => l.status === "Active") ||
-      leases[0] ||
-      null
-    );
-  }, [leases]);
+  /* ---------------- AUTO AMOUNT ENGINE ---------------- */
+  const computedAmount = useMemo(() => {
+    if (!selectedLease) return 0;
 
-  /* ---------------- FORM HANDLER ---------------- */
+    if (formData.type === "Deposit") {
+      return Number(selectedLease.deposit_amount);
+    }
+
+    return Number(selectedLease.rent_amount);
+  }, [selectedLease, formData.type]);
+
+  useEffect(() => {
+    if (selectedLease) {
+      setFormData(prev => ({
+        ...prev,
+        total_amount: computedAmount
+      }));
+    }
+  }, [computedAmount]);
+
+  /* ---------------- HANDLER ---------------- */
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -105,17 +117,15 @@ function GenerateInvoice() {
     e.preventDefault();
     setError("");
 
-    if (!activeLease) {
-      setError("No valid lease found for this tenant");
-      return;
-    }
+    if (!formData.tenant_id) return setError("Select tenant");
+    if (!formData.lease_id) return setError("Select lease");
 
     try {
       setSubmitting(true);
 
       const payload = {
         tenant: Number(formData.tenant_id),
-        lease: activeLease.id,
+        lease: Number(formData.lease_id),
         type: formData.type,
         period_start: formData.period_start,
         period_end: formData.period_end,
@@ -137,6 +147,7 @@ function GenerateInvoice() {
 
   const canGenerate =
     formData.tenant_id &&
+    formData.lease_id &&
     formData.period_start &&
     formData.period_end &&
     formData.issue_date &&
@@ -144,23 +155,17 @@ function GenerateInvoice() {
     formData.total_amount &&
     !submitting;
 
-  /* ---------------- UI (LABELS PRESERVED EXACTLY) ---------------- */
+  /* ---------------- UI ---------------- */
   return (
     <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 space-y-6">
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-
-        <div>
-          <h1 className="text-2xl font-bold">Generate Invoice</h1>
-          <p className="text-gray-500 text-sm">
-            Create a tenant invoice or auto-generate monthly rent invoices.
-          </p>
-        </div>
-
+      <div>
+        <h1 className="text-2xl font-bold">Generate Invoice</h1>
+        <p className="text-gray-500 text-sm">
+          Select tenant and lease to generate structured billing.
+        </p>
       </div>
 
-      {/* Form */}
       <div className="bg-white shadow rounded-xl p-6">
 
         {error && (
@@ -176,7 +181,6 @@ function GenerateInvoice() {
             {/* Tenant */}
             <div className="flex flex-col">
               <label className="text-sm font-medium mb-1">Tenant</label>
-
               <select
                 name="tenant_id"
                 value={formData.tenant_id}
@@ -184,31 +188,37 @@ function GenerateInvoice() {
                 className="border p-3 rounded-lg"
               >
                 <option value="">Select Tenant</option>
-
                 {tenants.map(t => (
                   <option key={t.id} value={t.id}>
                     {t.company_name}
                   </option>
                 ))}
-
               </select>
             </div>
 
             {/* Lease */}
             <div className="flex flex-col">
-              <label className="text-sm font-medium mb-1">Active Lease</label>
+              <label className="text-sm font-medium mb-1">Lease</label>
+              <select
+                name="lease_id"
+                value={formData.lease_id}
+                onChange={handleChange}
+                className="border p-3 rounded-lg"
+                disabled={!leases.length}
+              >
+                <option value="">Select Lease</option>
 
-              <input
-                value={activeLease ? activeLease.lease_number : "No active lease"}
-                disabled
-                className="border p-3 rounded-lg bg-gray-50"
-              />
+                {leases.map(l => (
+                  <option key={l.id} value={l.id}>
+                    {l.lease_number} — {l.unit_no} ({l.status})
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* Invoice Type */}
+            {/* Type */}
             <div className="flex flex-col">
               <label className="text-sm font-medium mb-1">Invoice Type</label>
-
               <select
                 name="type"
                 value={formData.type}
@@ -216,17 +226,15 @@ function GenerateInvoice() {
                 className="border p-3 rounded-lg"
               >
                 <option>Rent</option>
+                <option>Deposit</option>
                 <option>Utilities</option>
                 <option>Service Charge</option>
-                <option>Maintenance</option>
               </select>
             </div>
 
             {/* Period Start */}
             <div className="flex flex-col">
-              <label className="text-sm font-medium mb-1">
-                Billing Period Start
-              </label>
+              <label className="text-sm font-medium mb-1">Billing Start</label>
               <input
                 type="date"
                 name="period_start"
@@ -238,9 +246,7 @@ function GenerateInvoice() {
 
             {/* Period End */}
             <div className="flex flex-col">
-              <label className="text-sm font-medium mb-1">
-                Billing Period End
-              </label>
+              <label className="text-sm font-medium mb-1">Billing End</label>
               <input
                 type="date"
                 name="period_end"
@@ -252,9 +258,7 @@ function GenerateInvoice() {
 
             {/* Issue Date */}
             <div className="flex flex-col">
-              <label className="text-sm font-medium mb-1">
-                Invoice Issue Date
-              </label>
+              <label className="text-sm font-medium mb-1">Issue Date</label>
               <input
                 type="date"
                 name="issue_date"
@@ -266,9 +270,7 @@ function GenerateInvoice() {
 
             {/* Due Date */}
             <div className="flex flex-col">
-              <label className="text-sm font-medium mb-1">
-                Payment Due Date
-              </label>
+              <label className="text-sm font-medium mb-1">Due Date</label>
               <input
                 type="date"
                 name="due_date"
@@ -280,9 +282,7 @@ function GenerateInvoice() {
 
             {/* Amount */}
             <div className="flex flex-col md:col-span-2">
-              <label className="text-sm font-medium mb-1">
-                Invoice Amount
-              </label>
+              <label className="text-sm font-medium mb-1">Amount</label>
               <input
                 type="number"
                 name="total_amount"
@@ -290,6 +290,9 @@ function GenerateInvoice() {
                 onChange={handleChange}
                 className="border p-3 rounded-lg"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Auto-calculated from lease ({formData.type})
+              </p>
             </div>
 
           </div>
@@ -309,9 +312,7 @@ function GenerateInvoice() {
               type="submit"
               disabled={!canGenerate}
               className={`px-5 py-2 rounded-lg text-white ${
-                canGenerate
-                  ? "bg-green-600 hover:bg-green-700"
-                  : "bg-gray-400"
+                canGenerate ? "bg-green-600" : "bg-gray-400"
               }`}
             >
               {submitting ? "Generating..." : "Generate Invoice"}
@@ -322,7 +323,6 @@ function GenerateInvoice() {
         </form>
 
       </div>
-
     </div>
   );
 }

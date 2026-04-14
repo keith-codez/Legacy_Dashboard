@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Sum
 
 class Tenant(models.Model):
     company_name = models.CharField(max_length=255)
@@ -22,10 +23,17 @@ class Unit(models.Model):
 
     def __str__(self):
         return self.unit_no
+    
+
+class LeaseStatus(models.TextChoices):
+    ACTIVE = "Active"
+    EXPIRED = "Expired"
+    TERMINATED = "Terminated"
+
 
 
 class Lease(models.Model):
-    lease_number = models.CharField(max_length=50)
+    lease_number = models.CharField(max_length=50, blank=True, null=True, unique=True)
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
     unit = models.ForeignKey(Unit, on_delete=models.CASCADE)
     start_date = models.DateField()
@@ -33,10 +41,22 @@ class Lease(models.Model):
     rent_amount = models.DecimalField(max_digits=10, decimal_places=2)
     deposit_amount = models.DecimalField(max_digits=10, decimal_places=2)
     billing_day = models.IntegerField()
-    status = models.CharField(max_length=50)
+    status = models.CharField(
+        max_length=20,
+        choices=LeaseStatus.choices,
+        default=LeaseStatus.ACTIVE
+    )
 
     def __str__(self):
         return self.lease_number
+    
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+
+        if is_new and not self.lease_number:
+            self.lease_number = f"L-{self.id:03d}"
+            super().save(update_fields=["lease_number"])
 
 
 class Invoice(models.Model):
@@ -71,6 +91,13 @@ class Invoice(models.Model):
             self.invoice_no = f"INV-{last_number + 1:03d}"
 
         super().save(*args, **kwargs)
+
+    def get_paid_amount(self):
+        return (
+            self.paymentallocation_set.aggregate(
+                total=Sum("allocation_amount")
+            )["total"] or 0
+        )
 
 
 class Payment(models.Model):

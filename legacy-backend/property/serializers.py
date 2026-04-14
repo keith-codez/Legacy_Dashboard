@@ -30,33 +30,43 @@ class UnitSerializer(serializers.ModelSerializer):
 
 
 class LeaseSerializer(serializers.ModelSerializer):
+    tenant_name = serializers.CharField(source="tenant.company_name", read_only=True)
+    unit_no = serializers.CharField(source="unit.unit_no", read_only=True)
+
     class Meta:
         model = Lease
-        fields = '__all__'
+        fields = "__all__"
+        read_only_fields = ("lease_number",)
 
 
 class InvoiceSerializer(serializers.ModelSerializer):
+    paid_amount = serializers.SerializerMethodField()
     balance = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
-    tenant_name = serializers.CharField(source="tenant.company_name", read_only=True)
 
-    invoice_no = serializers.CharField(read_only=True)  # IMPORTANT
+    tenant_name = serializers.CharField(source="tenant.company_name", read_only=True)
 
     class Meta:
         model = Invoice
         fields = "__all__"
 
+    def _paid(self, obj):
+        # works for BOTH annotated and non-annotated instances
+        return getattr(obj, "paid_amount_db", None) or 0
+
+    def get_paid_amount(self, obj):
+        return float(self._paid(obj))
+
     def get_balance(self, obj):
-        allocated = get_invoice_allocated(obj)
-        balance = float(obj.total_amount) - float(allocated)
-        return max(balance, 0)
+        paid = float(self._paid(obj))
+        return max(float(obj.total_amount) - paid, 0)
 
     def get_status(self, obj):
-        allocated = get_invoice_allocated(obj)
+        paid = float(self._paid(obj))
 
-        if allocated >= obj.total_amount:
+        if paid >= float(obj.total_amount):
             return "Paid"
-        elif allocated > 0:
+        elif paid > 0:
             return "Partially Paid"
         return "Unpaid"
 
@@ -72,10 +82,13 @@ class PaymentSerializer(serializers.ModelSerializer):
 
 
 class PaymentAllocationSerializer(serializers.ModelSerializer):
+    payment_no = serializers.CharField(source="payment.payment_no", read_only=True)
+    payment_date = serializers.DateField(source="payment.date", read_only=True)
+    method = serializers.CharField(source="payment.method", read_only=True)
+
     class Meta:
         model = PaymentAllocation
-        fields = '__all__'
-
+        fields = "__all__"
 
 class InteractionSerializer(serializers.ModelSerializer):
     class Meta:

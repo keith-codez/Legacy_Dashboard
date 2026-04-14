@@ -114,7 +114,7 @@ export default function Dashboard() {
 
           <Action icon={<PlusCircle />} label="Add Tenant" onClick={() => navigate("/manager/tenants/new")} />
           <Action icon={<Home />} label="Add Unit" onClick={() => navigate("/manager/units/new")} />
-          <Action icon={<FileText />} label="Generate Invoice" onClick={() => navigate("/manager/invoices/generate")} />
+          <Action icon={<FileText />} label="Generate Invoice" onClick={() => navigate("/manager/invoices/new")} />
           <Action icon={<CreditCard />} label="Record Payment" onClick={() => navigate("/manager/payments/new")} />
           <Action icon={<NotebookPen />} label="Record Interaction" onClick={() => navigate("/manager/interactions/new")} />
           <Action icon={<FileText />} label="View Invoices" onClick={() => navigate("/manager/invoices")} />

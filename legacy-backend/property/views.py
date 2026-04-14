@@ -2,7 +2,8 @@ from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from django.db.models import Sum
+from django.db.models import Sum, Value, DecimalField
+from django.db.models.functions import Coalesce
 
 from .models import *
 from .serializers import *
@@ -88,7 +89,7 @@ class UnitViewSet(viewsets.ModelViewSet):
 
 # ---------------- LEASES ----------------
 class LeaseViewSet(viewsets.ModelViewSet):
-    queryset = Lease.objects.all()
+    queryset = Lease.objects.select_related("tenant", "unit")
     serializer_class = LeaseSerializer
 
     def get_queryset(self):
@@ -101,24 +102,90 @@ class LeaseViewSet(viewsets.ModelViewSet):
         return queryset
 
 
+    @action(detail=True, methods=["get"])
+    def details(self, request, pk=None):
+        lease = self.get_object()
+
+        invoices = (
+            Invoice.objects
+            .filter(lease=lease)
+            .annotate(
+                paid_amount=Coalesce(
+                    Sum("paymentallocation__allocation_amount"),
+                    Value(0),
+                    output_field=DecimalField()
+                )
+            )
+        )
+
+        enriched_invoices = []
+        total_invoiced = 0
+        total_paid = 0
+
+        for inv in invoices:
+            paid = float(inv.paid_amount or 0)
+            total = float(inv.total_amount)
+            balance = total - paid
+
+            status = "Unpaid"
+            if paid >= total:
+                status = "Paid"
+            elif paid > 0:
+                status = "Partially Paid"
+
+            enriched_invoices.append({
+                "id": inv.id,
+                "invoice_no": inv.invoice_no,
+                "total_amount": total,
+                "paid_amount": paid,
+                "balance": balance,
+                "status": status,
+                "due_date": inv.due_date
+            })
+
+            total_invoiced += total
+            total_paid += paid
+
+        return Response({
+            "lease": LeaseSerializer(lease).data,
+            "invoices": enriched_invoices,
+            "summary": {
+                "total_invoiced": total_invoiced,
+                "total_paid": total_paid,
+                "balance": total_invoiced - total_paid
+            }
+        })
+
 # ---------------- INVOICES ----------------
+
 class InvoiceViewSet(viewsets.ModelViewSet):
     queryset = Invoice.objects.all()
     serializer_class = InvoiceSerializer
+
+    def get_queryset(self):
+        return (
+            Invoice.objects
+            .select_related("tenant", "lease")
+            .annotate(
+                paid_amount_db=Coalesce(
+                    Sum("paymentallocation__allocation_amount"),
+                    Value(0),
+                    output_field=DecimalField()
+                )
+            )
+        )
 
     @action(detail=False, methods=["get"])
     def outstanding(self, request):
         tenant_id = request.query_params.get("tenant")
 
-        invoices = Invoice.objects.filter(tenant_id=tenant_id)
+        invoices = self.get_queryset().filter(tenant_id=tenant_id)
 
         data = []
 
         for inv in invoices:
-            allocated = get_invoice_allocated(inv)
-            balance = float(inv.total_amount) - float(allocated)
-
-            balance = max(balance, 0)
+            paid = float(inv.paid_amount_db)
+            balance = float(inv.total_amount) - paid
 
             if balance > 0:
                 data.append({
@@ -131,24 +198,6 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
         return Response(data)
     
-    @action(detail=True, methods=["get"])
-    def allocations(self, request, pk=None):
-        invoice = self.get_object()
-
-        allocations = PaymentAllocation.objects.filter(invoice=invoice)
-
-        data = []
-        for a in allocations:
-            data.append({
-                "id": a.id,
-                "payment_no": a.payment.payment_no,
-                "payment_date": a.date,
-                "method": a.payment.method,
-                "amount": float(a.allocation_amount)
-            })
-
-        return Response(data)
-
 
 # ---------------- PAYMENTS ----------------
 class PaymentViewSet(viewsets.ModelViewSet):
@@ -192,8 +241,15 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
 # ---------------- ALLOCATIONS ----------------
 class PaymentAllocationViewSet(viewsets.ModelViewSet):
-    queryset = PaymentAllocation.objects.all()
+    queryset = PaymentAllocation.objects.select_related("payment", "invoice")
     serializer_class = PaymentAllocationSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        invoice_id = self.request.query_params.get("invoice")
+        if invoice_id:
+            qs = qs.filter(invoice_id=invoice_id)
+        return qs
 
 
 # ---------------- INTERACTIONS ----------------

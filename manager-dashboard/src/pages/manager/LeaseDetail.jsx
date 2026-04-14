@@ -1,23 +1,37 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { Building2, Calendar, DollarSign } from "lucide-react";
-
-import leases from "../../data/leases.json";
-import tenants from "../../data/tenants.json";
-import units from "../../data/units.json";
-
-import {
-  getTenantInvoices,
-  getInvoicePaidAmount,
-  getInvoiceBalance,
-  getInvoiceStatus
-} from "../../utils/tenantSelectors";
+import { useEffect, useState } from "react";
+import { getLeaseDetails } from "../../api/api";
 
 function LeaseDetail() {
 
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const lease = leases.find(l => l.id === Number(id));
+  const [lease, setLease] = useState(null);
+  const [invoices, setInvoices] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const data = await getLeaseDetails(id);
+
+        setLease(data.lease);
+        setInvoices(data.invoices);
+        setSummary(data.summary);
+
+      } catch (err) {
+        console.error("Lease details load failed:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [id]);
+
+  if (loading) return <div className="p-8">Loading...</div>;
 
   if (!lease) {
     return (
@@ -33,22 +47,9 @@ function LeaseDetail() {
     );
   }
 
-  const tenant = tenants.find(t => t.id === lease.tenant_id);
-  const unit = units.find(u => u.id === lease.unit_id);
-
-  // Pull only invoices tied to this lease
-  const invoices = getTenantInvoices(lease.tenant_id)
-    .filter(inv => inv.lease_id === lease.id);
-
-  // Financial aggregates
-  const totalInvoiced = invoices.reduce((s, i) => s + i.total_amount, 0);
-
-  const totalPaid = invoices.reduce(
-    (s, i) => s + getInvoicePaidAmount(i.id),
-    0
-  );
-
-  const balance = totalInvoiced - totalPaid;
+  const totalInvoiced = summary?.total_invoiced || 0;
+  const totalPaid = summary?.total_paid || 0;
+  const balance = summary?.balance || 0;
 
   const statusStyles = {
     Active: "bg-green-100 text-green-700",
@@ -61,17 +62,15 @@ function LeaseDetail() {
 
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between gap-4">
-
         <div>
           <h1 className="text-2xl font-bold">
             {lease.lease_number}
           </h1>
 
           <p className="text-gray-500">
-            {tenant?.company_name} • {unit?.name || `Unit ${lease.unit_id}`}
+            {lease.tenant_name} • {lease.unit_no}
           </p>
         </div>
-
       </div>
 
       {/* STATUS */}
@@ -83,38 +82,17 @@ function LeaseDetail() {
 
       {/* SUMMARY CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-
-        <Card
-          label="Start Date"
-          value={new Date(lease.start_date).toLocaleDateString("en-GB")}
-        />
-
-        <Card
-          label="End Date"
-          value={new Date(lease.end_date).toLocaleDateString("en-GB")}
-        />
-
-        <Card
-          label="Monthly Rent"
-          value={`$${lease.rent_amount.toLocaleString()}`}
-        />
-
-        <Card
-          label="Deposit"
-          value={`$${lease.deposit_amount.toLocaleString()}`}
-        />
-
+        <Card label="Start Date" value={new Date(lease.start_date).toLocaleDateString("en-GB")} />
+        <Card label="End Date" value={new Date(lease.end_date).toLocaleDateString("en-GB")} />
+        <Card label="Monthly Rent" value={`$${Number(lease.rent_amount).toLocaleString()}`} />
+        <Card label="Deposit" value={`$${Number(lease.deposit_amount).toLocaleString()}`} />
       </div>
 
       {/* BILLING INFO */}
       <div className="bg-white shadow rounded-lg p-6">
-
-        <h2 className="font-semibold mb-3">
-          Billing Details
-        </h2>
+        <h2 className="font-semibold mb-3">Billing Details</h2>
 
         <div className="grid md:grid-cols-3 gap-4 text-gray-700">
-
           <div>
             <p className="text-sm text-gray-500">Billing Day</p>
             <p className="font-semibold">{lease.billing_day}</p>
@@ -122,62 +100,35 @@ function LeaseDetail() {
 
           <div>
             <p className="text-sm text-gray-500">Unit</p>
-            <p className="font-semibold">
-              {unit?.name || lease.unit_id}
-            </p>
+            <p className="font-semibold">{lease.unit_no}</p>
           </div>
 
           <div>
             <p className="text-sm text-gray-500">Tenant</p>
-            <p className="font-semibold">
-              {tenant?.company_name}
-            </p>
+            <p className="font-semibold">{lease.tenant_name}</p>
           </div>
-
         </div>
-
       </div>
 
       {/* FINANCIAL OVERVIEW */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-        <Card
-          label="Total Invoiced"
-          value={`$${totalInvoiced.toLocaleString()}`}
-        />
-
-        <Card
-          label="Total Paid"
-          value={`$${totalPaid.toLocaleString()}`}
-        />
-
-        <Card
-          label="Outstanding"
-          value={`$${balance.toLocaleString()}`}
-          highlight="text-red-600"
-        />
-
+        <Card label="Total Invoiced" value={`$${totalInvoiced.toLocaleString()}`} />
+        <Card label="Total Paid" value={`$${totalPaid.toLocaleString()}`} />
+        <Card label="Outstanding" value={`$${balance.toLocaleString()}`} highlight="text-red-600" />
       </div>
 
       {/* INVOICES TABLE */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
-
         <div className="p-6 border-b">
-          <h2 className="font-semibold">
-            Lease Invoices
-          </h2>
+          <h2 className="font-semibold">Lease Invoices</h2>
         </div>
 
         {invoices.length === 0 ? (
-
           <div className="p-6 text-gray-500">
             No invoices linked to this lease.
           </div>
-
         ) : (
-
           <table className="w-full text-sm">
-
             <thead className="bg-gray-50">
               <tr>
                 <th className="p-4 text-left">Invoice</th>
@@ -189,52 +140,24 @@ function LeaseDetail() {
             </thead>
 
             <tbody>
-
-              {invoices.map(inv => {
-
-                const paid = getInvoicePaidAmount(inv.id);
-                const bal = getInvoiceBalance(inv.id);
-                const status = getInvoiceStatus(inv.id);
-
-                return (
-                  <tr key={inv.id} className="border-t">
-
-                    <td className="p-4">{inv.invoice_no}</td>
-
-                    <td className="p-4">
-                      ${inv.total_amount.toLocaleString()}
-                    </td>
-
-                    <td className="p-4">
-                      ${paid.toLocaleString()}
-                    </td>
-
-                    <td className="p-4">
-                      ${bal.toLocaleString()}
-                    </td>
-
-                    <td className="p-4">
-                      {status}
-                    </td>
-
-                  </tr>
-                );
-
-              })}
-
+              {invoices.map(inv => (
+                <tr key={inv.id} className="border-t">
+                  <td className="p-4">{inv.invoice_no}</td>
+                  <td className="p-4">${Number(inv.total_amount).toLocaleString()}</td>
+                  <td className="p-4">${Number(inv.paid_amount).toLocaleString()}</td>
+                  <td className="p-4">${Number(inv.balance).toLocaleString()}</td>
+                  <td className="p-4">{inv.status}</td>
+                </tr>
+              ))}
             </tbody>
-
           </table>
-
         )}
-
       </div>
 
     </div>
   );
 }
 
-/* Reusable Card */
 const Card = ({ label, value, highlight }) => (
   <div className="bg-white shadow rounded-lg p-4">
     <p className="text-gray-500 text-sm">{label}</p>
