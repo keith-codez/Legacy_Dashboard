@@ -14,15 +14,24 @@ class Tenant(models.Model):
 
 
 class Unit(models.Model):
-    unit_no = models.CharField(max_length=50)
+    unit_no = models.CharField(max_length=50, unique=True)
     floor = models.IntegerField()
     size_sqm = models.IntegerField()
     base_rent = models.DecimalField(max_digits=10, decimal_places=2)
     unit_type = models.CharField(max_length=50)
-    status = models.CharField(max_length=50)
+
+    def save(self, *args, **kwargs):
+        if not self.unit_no or not self.unit_no.strip():
+            raise ValueError("unit_no is required")
+
+        self.unit_no = self.unit_no.strip().upper()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.unit_no
+
+    
+    
     
 
 class LeaseStatus(models.TextChoices):
@@ -46,6 +55,11 @@ class Lease(models.Model):
         choices=LeaseStatus.choices,
         default=LeaseStatus.ACTIVE
     )
+
+    # SNAPSHOTS (TEMPORARILY NULLABLE)
+    unit_no_snapshot = models.CharField(max_length=50, null=True, blank=True)
+    unit_type_snapshot = models.CharField(max_length=50, null=True, blank=True)
+    base_rent_snapshot = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
     def __str__(self):
         return self.lease_number

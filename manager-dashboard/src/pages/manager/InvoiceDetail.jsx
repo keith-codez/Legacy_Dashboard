@@ -147,7 +147,7 @@ function InvoiceDetail() {
 
             <tbody>
               {allocations.map((a) => (
-                <tr key={a.id} className="border-t"
+                <tr key={a.id} className="border-t cursor-pointer hover:bg-gray-50"
                 onClick={() => navigate(`/manager/payments/${a.payment}`)}>
                   <td className="p-4 font-medium">{a.payment_no}</td>
                   <td className="p-4">

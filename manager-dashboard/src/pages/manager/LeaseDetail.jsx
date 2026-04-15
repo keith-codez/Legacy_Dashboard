@@ -141,7 +141,8 @@ function LeaseDetail() {
 
             <tbody>
               {invoices.map(inv => (
-                <tr key={inv.id} className="border-t">
+                <tr key={inv.id} className="border-t cursor-pointer hover:bg-gray-50"
+                onClick={() => navigate(`/manager/invoices/${inv.id}`)}>
                   <td className="p-4">{inv.invoice_no}</td>
                   <td className="p-4">${Number(inv.total_amount).toLocaleString()}</td>
                   <td className="p-4">${Number(inv.paid_amount).toLocaleString()}</td>

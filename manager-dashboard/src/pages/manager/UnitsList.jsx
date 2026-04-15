@@ -2,21 +2,37 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MoreVertical } from "lucide-react";
 
-import unitsData from "../../data/units.json";
+import { getUnits } from "../../api/api";
 
 function UnitsList() {
   const navigate = useNavigate();
-  const [units] = useState(unitsData);
+
+  const [units, setUnits] = useState([]);
   const [menuOpen, setMenuOpen] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Close dropdowns on outside click
+  /* ---------------- FETCH UNITS ---------------- */
+  useEffect(() => {
+    const fetchUnits = async () => {
+      try {
+        const res = await getUnits();
+        setUnits(res);
+      } catch (err) {
+        console.error("Failed to load units", err);
+      }
+    };
+
+    fetchUnits();
+  }, []);
+
+  /* ---------------- CLOSE MENU ---------------- */
   useEffect(() => {
     const handleClick = () => setMenuOpen(null);
     window.addEventListener("click", handleClick);
     return () => window.removeEventListener("click", handleClick);
   }, []);
 
+  /* ---------------- FILTER ---------------- */
   const filteredUnits = units.filter((u) => {
     const q = searchQuery.toLowerCase();
     return (
@@ -85,7 +101,7 @@ function UnitsList() {
                   <td className="p-4 font-medium">{u.unit_no}</td>
                   <td className="p-4">{u.floor}</td>
                   <td className="p-4">{u.size_sqm}</td>
-                  <td className="p-4">${u.base_rent.toLocaleString()}</td>
+                  <td className="p-4">${Number(u.base_rent).toLocaleString()}</td>
                   <td className="p-4">{u.unit_type}</td>
                   <td className="p-4">
                     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusStyles(u.status)}`}>
@@ -167,7 +183,7 @@ function UnitsList() {
 
               <div className="mt-3 text-sm text-gray-600 space-y-2">
                 <p><strong>Size:</strong> {u.size_sqm} sqm</p>
-                <p><strong>Base Rent:</strong> ${u.base_rent.toLocaleString()}</p>
+                <p><strong>Base Rent:</strong> ${Number(u.base_rent).toLocaleString()}</p>
                 <p><strong>Status:</strong>{" "}
                   <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusStyles(u.status)}`}>
                     {u.status}

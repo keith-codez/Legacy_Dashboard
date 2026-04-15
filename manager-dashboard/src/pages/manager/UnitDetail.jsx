@@ -1,11 +1,37 @@
 import { useParams, useNavigate } from "react-router-dom";
-import unitsData from "../../data/units.json";
+import { useEffect, useState } from "react";
+
+import { getUnits } from "../../api/api";
 
 function UnitDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const unit = unitsData.find(u => u.id === Number(id));
+  const [unit, setUnit] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  /* ---------------- FETCH UNIT ---------------- */
+  useEffect(() => {
+    const fetchUnit = async () => {
+      try {
+        const res = await getUnits();
+
+        // mimic previous logic (find by id)
+        const found = res.find(u => u.id === Number(id));
+        setUnit(found || null);
+      } catch (err) {
+        console.error("Failed to load unit", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUnit();
+  }, [id]);
+
+  if (loading) {
+    return <div className="p-6">Loading...</div>;
+  }
 
   if (!unit) {
     return (
@@ -75,7 +101,9 @@ function UnitDetail() {
 
           <div>
             <p className="text-sm text-gray-500">Base Rent ($)</p>
-            <p className="font-semibold">${unit.base_rent.toLocaleString()}</p>
+            <p className="font-semibold">
+              ${Number(unit.base_rent).toLocaleString()}
+            </p>
           </div>
 
           <div>

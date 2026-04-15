@@ -94,8 +94,16 @@ class TenantViewSet(viewsets.ModelViewSet):
 
 # ---------------- UNITS ----------------
 class UnitViewSet(viewsets.ModelViewSet):
-    queryset = Unit.objects.all()
+    queryset = Unit.objects.all().prefetch_related("lease_set")
     serializer_class = UnitSerializer
+
+    def perform_create(self, serializer):
+        unit_no = serializer.validated_data.get("unit_no")
+
+        if Unit.objects.filter(unit_no__iexact=unit_no).exists():
+            raise serializers.ValidationError("Unit already exists")
+
+        serializer.save(unit_no=unit_no.strip().upper())
 
 
 # ---------------- LEASES ----------------

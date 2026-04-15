@@ -24,14 +24,30 @@ class TenantSerializer(serializers.ModelSerializer):
 
 
 class UnitSerializer(serializers.ModelSerializer):
+    status = serializers.SerializerMethodField()
+
     class Meta:
         model = Unit
-        fields = '__all__'
+        fields = "__all__"
+        read_only_fields = ["status"]
 
+    def get_status(self, obj):
+        return "Occupied" if obj.lease_set.filter(status="Active").exists() else "Vacant"
 
+    def validate_unit_no(self, value):
+        value = value.strip().upper()
+
+        if not value:
+            raise serializers.ValidationError("unit_no is required")
+
+        return value
+    
+    
 class LeaseSerializer(serializers.ModelSerializer):
     tenant_name = serializers.CharField(source="tenant.company_name", read_only=True)
-    unit_no = serializers.CharField(source="unit.unit_no", read_only=True)
+    unit_no = serializers.CharField(source="unit_no_snapshot", read_only=True)
+    unit_type = serializers.CharField(source="unit_type_snapshot", read_only=True)
+    base_rent = serializers.DecimalField(source="base_rent_snapshot", max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = Lease

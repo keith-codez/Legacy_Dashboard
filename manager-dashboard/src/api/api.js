@@ -123,3 +123,17 @@ export const createLease = async (payload) => {
   return res.data;
 };
 
+
+export const updateUnit = async (id, payload) => {
+  const res = await API.put(`/units/${id}/`, payload);
+  return res.data;
+};
+export const getUnit = async (id) => {
+  const res = await API.get(`/units/${id}/`);
+  return res.data;
+};
+
+export const createUnit = async (data) => {
+  const res = await API.post("/units/", data);
+  return res.data;
+};
