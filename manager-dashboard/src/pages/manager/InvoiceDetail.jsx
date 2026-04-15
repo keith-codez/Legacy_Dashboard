@@ -147,14 +147,15 @@ function InvoiceDetail() {
 
             <tbody>
               {allocations.map((a) => (
-                <tr key={a.id} className="border-t">
+                <tr key={a.id} className="border-t"
+                onClick={() => navigate(`/manager/payments/${a.payment}`)}>
                   <td className="p-4 font-medium">{a.payment_no}</td>
                   <td className="p-4">
                     {new Date(a.payment_date).toLocaleDateString("en-GB")}
                   </td>
                   <td className="p-4">{a.method}</td>
                   <td className="p-4 font-semibold">
-                    ${Number(a.amount).toLocaleString()}
+                    ${Number(a.allocation_amount).toLocaleString()}
                   </td>
                 </tr>
               ))}

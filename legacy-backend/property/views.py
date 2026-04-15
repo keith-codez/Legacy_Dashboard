@@ -59,7 +59,18 @@ class TenantViewSet(viewsets.ModelViewSet):
         tenant = self.get_object()
 
         leases = Lease.objects.filter(tenant=tenant)
-        invoices = Invoice.objects.filter(tenant=tenant)
+        invoices = (
+            Invoice.objects
+            .filter(tenant=tenant)
+            .select_related("tenant", "lease")
+            .annotate(
+                paid_amount_db=Coalesce(
+                    Sum("paymentallocation__allocation_amount"),
+                    Value(0),
+                    output_field=DecimalField()
+                )
+            )
+        )
         interactions = Interaction.objects.filter(tenant=tenant)
 
         total_invoiced = get_tenant_invoiced(tenant)

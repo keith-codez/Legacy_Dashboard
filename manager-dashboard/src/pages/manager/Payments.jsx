@@ -131,7 +131,9 @@ function PaymentsList() {
 
             <tbody>
               {filteredPayments.map((p) => (
-                <tr key={p.id} className="border-t hover:bg-gray-50">
+                <tr key={p.id} className="border-t hover:bg-gray-50 cursor-pointer"
+                  onClick={() => navigate(`/manager/payments/${p.id}`)}
+                >
                   <td className="p-4 font-medium">{p.payment_no}</td>
                   <td className="p-4">{p.tenant_name}</td>
                   <td className="p-4">

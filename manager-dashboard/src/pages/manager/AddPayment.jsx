@@ -7,6 +7,16 @@ import {
   createPayment
 } from "../../api/api";
 
+/* ---------------- REUSABLE FIELD ---------------- */
+const FormField = ({ label, children }) => (
+  <div className="flex flex-col">
+    <label className="text-sm font-medium text-gray-600 mb-1">
+      {label}
+    </label>
+    {children}
+  </div>
+);
+
 function AddPayment() {
   const navigate = useNavigate();
 
@@ -30,7 +40,7 @@ function AddPayment() {
     getTenants().then(setTenants);
   }, []);
 
-  /* ---------------- LOAD INVOICES ON TENANT SELECT ---------------- */
+  /* ---------------- LOAD INVOICES ---------------- */
   useEffect(() => {
     if (!formData.tenant_id) {
       setOutstandingInvoices([]);
@@ -92,7 +102,6 @@ function AddPayment() {
       if (remainingAmount <= 0) break;
 
       const balance = Number(inv.balance);
-
       const allocate = Math.min(balance, remainingAmount);
 
       auto[inv.id] = allocate;
@@ -131,7 +140,7 @@ function AddPayment() {
     }
   };
 
-  /* ---------------- UI (UNCHANGED) ---------------- */
+  /* ---------------- UI ---------------- */
 
   return (
     <div className="max-w-5xl mx-auto p-8 bg-white shadow rounded-xl">
@@ -139,73 +148,87 @@ function AddPayment() {
 
       <form onSubmit={handleSubmit} className="space-y-8">
 
+        {/* FORM GRID */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-          <select
-            name="tenant_id"
-            value={formData.tenant_id}
-            onChange={handleChange}
-            required
-            className="border p-3 rounded-lg"
-          >
-            <option value="">Select Tenant</option>
-            {tenants.map(t => (
-              <option key={t.id} value={t.id}>
-                {t.company_name}
-              </option>
-            ))}
-          </select>
+          <FormField label="Tenant">
+            <select
+              name="tenant_id"
+              value={formData.tenant_id}
+              onChange={handleChange}
+              required
+              className="border p-3 rounded-lg"
+            >
+              <option value="">Select Tenant</option>
+              {tenants.map(t => (
+                <option key={t.id} value={t.id}>
+                  {t.company_name}
+                </option>
+              ))}
+            </select>
+          </FormField>
 
-          <input
-            type="number"
-            name="amount"
-            placeholder="Payment Amount"
-            value={formData.amount}
-            onChange={handleChange}
-            required
-            className="border p-3 rounded-lg"
-          />
+          <FormField label="Payment Amount">
+            <input
+              type="number"
+              name="amount"
+              placeholder="Enter amount"
+              value={formData.amount}
+              onChange={handleChange}
+              required
+              className="border p-3 rounded-lg"
+            />
+          </FormField>
 
-          <input
-            type="date"
-            name="date"
-            value={formData.date}
-            onChange={handleChange}
-            required
-            className="border p-3 rounded-lg"
-          />
+          <FormField label="Payment Date">
+            <input
+              type="date"
+              name="date"
+              value={formData.date}
+              onChange={handleChange}
+              required
+              className="border p-3 rounded-lg"
+            />
+          </FormField>
 
-          <select
-            name="method"
-            value={formData.method}
-            onChange={handleChange}
-            className="border p-3 rounded-lg"
-          >
-            <option>Bank Transfer</option>
-            <option>Cash</option>
-            <option>Ecocash</option>
-          </select>
+          <FormField label="Payment Method">
+            <select
+              name="method"
+              value={formData.method}
+              onChange={handleChange}
+              className="border p-3 rounded-lg"
+            >
+              <option>Bank Transfer</option>
+              <option>Cash</option>
+              <option>Ecocash</option>
+            </select>
+          </FormField>
 
-          <input
-            type="text"
-            name="reference"
-            placeholder="Reference"
-            value={formData.reference}
-            onChange={handleChange}
-            className="border p-3 rounded-lg"
-          />
+          <FormField label="Reference">
+            <input
+              type="text"
+              name="reference"
+              placeholder="Transaction reference"
+              value={formData.reference}
+              onChange={handleChange}
+              className="border p-3 rounded-lg"
+            />
+          </FormField>
 
-          <input
-            type="text"
-            name="receipt_no"
-            placeholder="Receipt Number"
-            value={formData.receipt_no}
-            onChange={handleChange}
-            className="border p-3 rounded-lg"
-          />
+          <FormField label="Receipt Number">
+            <input
+              type="text"
+              name="receipt_no"
+              placeholder="Receipt number"
+              value={formData.receipt_no}
+              onChange={handleChange}
+              className="border p-3 rounded-lg"
+            />
+          </FormField>
 
         </div>
 
+        {/* ALLOCATIONS */}
         {formData.tenant_id && (
           <div className="border-t pt-8">
 
@@ -275,6 +298,7 @@ function AddPayment() {
               </div>
             )}
 
+            {/* SUMMARY */}
             <div className="mt-6 p-4 bg-gray-100 rounded-lg">
               <div className="flex justify-between">
                 <span>Payment Amount:</span>
@@ -299,6 +323,7 @@ function AddPayment() {
           </div>
         )}
 
+        {/* ACTIONS */}
         <div className="flex justify-end gap-4 pt-6 border-t">
           <button
             type="button"

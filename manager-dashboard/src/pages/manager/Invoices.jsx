@@ -161,8 +161,8 @@ function InvoicesList() {
 
             <tbody>
               {filteredInvoices.map((inv) => (
-                <tr key={inv.id} className="border-t hover:bg-gray-50">
-
+                <tr key={inv.id} className="border-t hover:bg-gray-50 cursor-pointer"
+                  onClick={() => navigate(`/manager/invoices/${inv.id}`)}>
                   <td
                     className="p-4 font-medium text-blue-600 cursor-pointer"
                     onClick={() => navigate(`/manager/invoices/${inv.id}`)}
