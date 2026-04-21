@@ -6,7 +6,6 @@ import Dashboard from "./pages/manager/Dashboard";
 import TenantList from "./pages/manager/Tenants";
 import Invoices from "./pages/manager/Invoices";
 import LeaseList from "./pages/manager/Leases";
-import Units from "./pages/manager/UnitsList";
 import Reports from "./pages/manager/Reports";
 import TenantDetails from "./pages/manager/TenantDetails";
 import EditTenant from "./pages/manager/EditTenant";
@@ -60,7 +59,7 @@ export default function App() {
           <Route path="interactions" element={<InteractionsList />} />
           <Route path="interactions/:id" element={<InteractionDetail />} />
           <Route path="reports" element={<Reports />} />
-          <Route path="/manager/statements/:id" element={<TenantStatement />} />
+          <Route path="statements/:id" element={<TenantStatement />} />
         </Route>
 
       </Routes>

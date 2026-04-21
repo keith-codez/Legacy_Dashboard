@@ -1,13 +1,40 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { getTenantStatement } from "../../api/api";
+import { getTenantStatement, exportStatements } from "../../api/api";
 
 function TenantStatement() {
   const { id } = useParams();
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
+  const downloadPDF = (data, filename) => {
+  const blob = new Blob([data], { type: "application/pdf" });
+  const url = window.URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const res = await exportStatements(id);
+      downloadPDF(res.data, `statement_${id}.pdf`);
+    } catch (err) {
+      console.error("Export failed", err);
+    } finally {
+      setExporting(false);
+    }
+  };
   useEffect(() => {
     const load = async () => {
       try {
@@ -28,10 +55,21 @@ function TenantStatement() {
 
   return (
     <div className="p-4 md:p-8 space-y-6">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
 
-      <div>
-        <h1 className="text-2xl font-bold">Tenant Statement</h1>
-        <p className="text-gray-500">{data.tenant.company_name}</p>
+        <div>
+          <h1 className="text-2xl font-bold">Tenant Statement</h1>
+          <p className="text-gray-500">{data.tenant.company_name}</p>
+        </div>
+
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          className="bg-black text-white px-4 py-2 rounded hover:opacity-90 disabled:opacity-50"
+        >
+          {exporting ? "Exporting..." : "Export Statement"}
+        </button>
+
       </div>
 
       <div className="bg-white shadow rounded-lg overflow-x-auto">

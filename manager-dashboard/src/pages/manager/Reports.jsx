@@ -1,8 +1,6 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Download, Calendar, MoreVertical } from "lucide-react";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
+import { Download, MoreVertical } from "lucide-react";
 
 import {
   getReports,
@@ -13,12 +11,11 @@ import {
 } from "../../api/api";
 
 import RevenueTrend from "../../components/RevenueTrend";
-import OccupancyTrend from "../../components/OccupancyTrend";
+import TenantOutstandingChart from "../../components/TenantOutstandingChart";
 
 function Reports() {
   const navigate = useNavigate();
 
-  const [period, setPeriod] = useState(new Date());
   const [selectedTenant, setSelectedTenant] = useState("all");
 
   const [dashboard, setDashboard] = useState(null);
@@ -28,11 +25,6 @@ function Reports() {
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(null);
 
-  const periodKey = useMemo(
-    () => period.toISOString().slice(0, 7),
-    [period]
-  );
-
   /* ---------------- DATA LOAD ---------------- */
   useEffect(() => {
     const load = async () => {
@@ -41,7 +33,7 @@ function Reports() {
       const [dash, tenantList, reports] = await Promise.all([
         getDashboard(),
         getTenants(),
-        getReports(selectedTenant, periodKey),
+        getReports(selectedTenant),
       ]);
 
       setDashboard(dash);
@@ -52,7 +44,7 @@ function Reports() {
     };
 
     load();
-  }, [periodKey, selectedTenant]);
+  }, [selectedTenant]);
 
   /* ---------------- FILTER ---------------- */
   const filteredData = useMemo(() => {
@@ -83,13 +75,13 @@ function Reports() {
   const handleExportPortfolio = async () => {
     try {
       const res = await exportPortfolio();
-      downloadPDF(res.data, `portfolio_${periodKey}.pdf`);
+      downloadPDF(res.data, `portfolio_report.pdf`);
     } catch (err) {
       console.error("Portfolio export failed", err);
     }
   };
 
-  /* ---------------- EXPORT TENANT STATEMENT ---------------- */
+  /* ---------------- EXPORT TENANT ---------------- */
   const handleExportTenant = async (tenantId) => {
     try {
       const res = await exportStatements(tenantId);
@@ -105,7 +97,7 @@ function Reports() {
       const res = await exportStatements(
         selectedTenant === "all" ? null : selectedTenant
       );
-      downloadPDF(res.data, `tenant_statements_${periodKey}.pdf`);
+      downloadPDF(res.data, `tenant_statements.pdf`);
     } catch (err) {
       console.error("Export all failed", err);
     }
@@ -140,19 +132,6 @@ function Reports() {
         </button>
       </div>
 
-      {/* PERIOD FILTER */}
-      <div className="bg-white shadow rounded-lg p-4 flex items-center gap-3 w-fit">
-        <Calendar className="w-4 h-4 text-gray-500" />
-
-        <DatePicker
-          selected={period}
-          onChange={(date) => setPeriod(date)}
-          dateFormat="yyyy-MM"
-          showMonthYearPicker
-          className="outline-none border rounded px-2 py-1"
-        />
-      </div>
-
       {/* KPI GRID */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Metric label="Total Invoiced" value={dashboard.total_invoiced} />
@@ -165,7 +144,7 @@ function Reports() {
       {/* TREND CHARTS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <RevenueTrend />
-        <OccupancyTrend />
+        <TenantOutstandingChart />
       </div>
 
       {/* TABLE */}

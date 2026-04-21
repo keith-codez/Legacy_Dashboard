@@ -194,3 +194,8 @@ export const getOccupancyTrend = async () => {
   const res = await API.get("/reports/occupancy-trend/");
   return res.data;
 };
+
+export const getTenantOutstandingBalances = async () => {
+  const res = await API.get("/reports/tenant-outstanding-balances/");
+  return res.data;
+};

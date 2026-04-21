@@ -9,12 +9,14 @@ from django.http import HttpResponse
 from reportlab.pdfgen import canvas
 from .models import *
 
+
+
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
 from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import A4
 
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 from django.utils.dateparse import parse_date
 
@@ -33,26 +35,41 @@ from property.services.allocation_service import (
     get_invoice_allocated
 )
 
-class OccupancyTrendView(APIView):
+
+
+
+
+class TenantOutstandingBalancesView(APIView):
+
     def get(self, request):
-        units_count = Unit.objects.count()
 
-        leases = (
-            Lease.objects
-            .annotate(month=TruncMonth("start_date"))
-            .values("month")
-            .annotate(active=Count("id"))
-            .order_by("month")
-        )
+        tenants = Tenant.objects.all()
 
-        return Response([
-            {
-                "month": l["month"].strftime("%Y-%m"),
-                "occupancyRate": round((l["active"] / units_count) * 100, 2)
-            }
-            for l in leases
-        ])
+        data = []
 
+        for tenant in tenants:
+
+            invoices = Invoice.objects.filter(tenant=tenant)
+            allocations = PaymentAllocation.objects.filter(invoice__tenant=tenant)
+
+            total_invoiced = sum(float(i.total_amount) for i in invoices)
+            total_paid = sum(float(a.allocation_amount) for a in allocations)
+
+            outstanding = total_invoiced - total_paid
+
+            # only include tenants with debt exposure
+            if outstanding > 0:
+                data.append({
+                    "tenant": tenant.company_name,
+                    "outstanding": round(outstanding, 2)
+                })
+
+        # sort by highest risk first
+        data = sorted(data, key=lambda x: x["outstanding"], reverse=True)
+
+        return Response(data)
+
+        
 class RevenueTrendView(APIView):
     def get(self, request):
         data = (
@@ -459,10 +476,48 @@ class PortfolioExportView(APIView):
         response = HttpResponse(content_type="application/pdf")
         response["Content-Disposition"] = 'attachment; filename="portfolio_report.pdf"'
 
-        doc = SimpleDocTemplate(response, pagesize=A4)
+        doc = SimpleDocTemplate(
+            response,
+            pagesize=A4,
+            rightMargin=30,
+            leftMargin=30,
+            topMargin=30,
+            bottomMargin=30
+        )
+
         styles = getSampleStyleSheet()
         elements = []
 
+        # ===============================
+        # CUSTOM STYLES (BRAND SYSTEM)
+        # ===============================
+        title_style = ParagraphStyle(
+            "TitleStyle",
+            parent=styles["Title"],
+            fontSize=20,
+            textColor=colors.HexColor("#111827"),
+            spaceAfter=6
+        )
+
+        subtitle_style = ParagraphStyle(
+            "Subtitle",
+            parent=styles["Normal"],
+            fontSize=10,
+            textColor=colors.HexColor("#6B7280"),
+            spaceAfter=18
+        )
+
+        section_header = ParagraphStyle(
+            "SectionHeader",
+            parent=styles["Heading2"],
+            fontSize=14,
+            textColor=colors.HexColor("#1F2937"),
+            spaceAfter=10
+        )
+
+        # ===============================
+        # DATA
+        # ===============================
         invoices = Invoice.objects.all()
         allocations = PaymentAllocation.objects.all()
         units = Unit.objects.all()
@@ -474,10 +529,19 @@ class PortfolioExportView(APIView):
         occupied_units = units.filter(lease__status="Active").distinct().count()
         occupancy = (occupied_units / units.count() * 100) if units.count() else 0
 
-        # ---------------- HEADER ----------------
-        elements.append(Paragraph("PORTFOLIO FINANCIAL REPORT", styles["Title"]))
+        today = datetime.now().strftime("%d %B %Y")
+
+        # ===============================
+        # HEADER (BRANDED)
+        # ===============================
+        elements.append(Paragraph("PORTFOLIO FINANCIAL REPORT", title_style))
+        elements.append(Paragraph(f"Generated: {today}", subtitle_style))
+
         elements.append(Spacer(1, 12))
 
+        # ===============================
+        # SUMMARY CARDS TABLE (UPGRADED)
+        # ===============================
         summary_data = [
             ["Metric", "Value"],
             ["Total Invoiced", f"${total_invoiced:,.2f}"],
@@ -486,23 +550,35 @@ class PortfolioExportView(APIView):
             ["Occupancy Rate", f"{occupancy:.2f}%"],
         ]
 
-        summary_table = Table(summary_data, hAlign="LEFT")
+        summary_table = Table(summary_data, colWidths=[200, 250])
+
         summary_table.setStyle(TableStyle([
-            ("BACKGROUND", (0,0), (-1,0), colors.black),
-            ("TEXTCOLOR", (0,0), (-1,0), colors.white),
-            ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
-            ("PADDING", (0,0), (-1,-1), 6),
+            # Header
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#111827")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+
+            # Body styling
+            ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#F9FAFB")),
+            ("TEXTCOLOR", (0, 1), (-1, -1), colors.HexColor("#111827")),
+
+            # Grid + spacing
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E5E7EB")),
+            ("PADDING", (0, 0), (-1, -1), 10),
+
+            # Alignment
+            ("ALIGN", (0, 0), (-1, -1), "LEFT"),
         ]))
 
         elements.append(summary_table)
         elements.append(PageBreak())
 
-        # ---------------- TENANT BREAKDOWN ----------------
-        elements.append(Paragraph("Tenant Breakdown", styles["Heading2"]))
-        elements.append(Spacer(1, 12))
+        # ===============================
+        # TENANT BREAKDOWN
+        # ===============================
+        elements.append(Paragraph("Tenant Breakdown", section_header))
+        elements.append(Spacer(1, 10))
 
         tenant_rows = [["Tenant", "Invoiced", "Paid", "Balance"]]
-
         tenants = Tenant.objects.all()
 
         for t in tenants:
@@ -520,19 +596,42 @@ class PortfolioExportView(APIView):
                 f"${bal:,.2f}",
             ])
 
-        table = Table(tenant_rows, hAlign="LEFT")
-        table.setStyle(TableStyle([
-            ("BACKGROUND", (0,0), (-1,0), colors.darkblue),
-            ("TEXTCOLOR", (0,0), (-1,0), colors.white),
-            ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
-            ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
-            ("PADDING", (0,0), (-1,-1), 6),
-        ]))
+        tenant_table = Table(
+            tenant_rows,
+            colWidths=[200, 100, 100, 100]
+        )
 
-        elements.append(table)
+        # Zebra styling for readability
+        style = TableStyle([
+            # Header
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2563EB")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+
+            # Body grid
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E5E7EB")),
+            ("PADDING", (0, 0), (-1, -1), 8),
+
+            # Alignment
+            ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ])
+
+        # Zebra rows (alternating background)
+        for i in range(1, len(tenant_rows)):
+            if i % 2 == 0:
+                style.add("BACKGROUND", (0, i), (-1, i), colors.HexColor("#F3F4F6"))
+            else:
+                style.add("BACKGROUND", (0, i), (-1, i), colors.white)
+
+        tenant_table.setStyle(style)
+
+        elements.append(tenant_table)
 
         doc.build(elements)
         return response
+
+
 
 
 class StatementExportView(APIView):
@@ -544,26 +643,80 @@ class StatementExportView(APIView):
         response = HttpResponse(content_type="application/pdf")
         response["Content-Disposition"] = 'attachment; filename="tenant_statements.pdf"'
 
-        doc = SimpleDocTemplate(response, pagesize=A4)
+        doc = SimpleDocTemplate(
+            response,
+            pagesize=A4,
+            rightMargin=30,
+            leftMargin=30,
+            topMargin=30,
+            bottomMargin=30
+        )
+
         styles = getSampleStyleSheet()
         elements = []
 
+        # ============================
+        # CUSTOM STYLES
+        # ============================
+        title_style = ParagraphStyle(
+            "TitleStyle",
+            parent=styles["Title"],
+            fontSize=18,
+            textColor=colors.HexColor("#111827"),
+            spaceAfter=6
+        )
+
+        subtitle_style = ParagraphStyle(
+            "Sub",
+            parent=styles["Normal"],
+            fontSize=10,
+            textColor=colors.HexColor("#6B7280"),
+            spaceAfter=12
+        )
+
+        section_style = ParagraphStyle(
+            "Section",
+            parent=styles["Heading2"],
+            fontSize=13,
+            textColor=colors.HexColor("#1F2937"),
+            spaceAfter=10
+        )
+
+        today = datetime.now().strftime("%d %B %Y")
+
+        # ============================
+        # TENANTS FILTER
+        # ============================
         tenants_qs = Tenant.objects.all()
 
         if tenant_id and tenant_id != "all":
             tenants_qs = tenants_qs.filter(id=tenant_id)
 
+        # ============================
+        # LOOP TENANTS
+        # ============================
         for tenant in tenants_qs:
 
-            invoices = Invoice.objects.filter(tenant=tenant).order_by("issue_date")
+            invoices = Invoice.objects.filter(
+                tenant=tenant
+            ).order_by("issue_date")
 
             if not invoices.exists():
                 continue
 
-            elements.append(Paragraph(tenant.company_name, styles["Title"]))
-            elements.append(Spacer(1, 10))
+            # ============================
+            # HEADER BLOCK (PER TENANT)
+            # ============================
+            elements.append(Paragraph("TENANT STATEMENT", title_style))
+            elements.append(Paragraph(f"{tenant.company_name}", section_style))
+            elements.append(Paragraph(f"Generated: {today}", subtitle_style))
 
-            ledger = [["Date", "Type", "Ref", "Debit", "Credit", "Balance"]]
+            elements.append(Spacer(1, 12))
+
+            # ============================
+            # LEDGER TABLE
+            # ============================
+            ledger = [["Date", "Type", "Reference", "Debit", "Credit", "Balance"]]
 
             balance = 0
 
@@ -574,12 +727,14 @@ class StatementExportView(APIView):
                     inv.issue_date.strftime("%Y-%m-%d"),
                     "Invoice",
                     inv.invoice_no,
-                    f"{inv.total_amount:,.2f}",
+                    f"${inv.total_amount:,.2f}",
                     "-",
-                    f"{balance:,.2f}",
+                    f"${balance:,.2f}",
                 ])
 
-                for alloc in PaymentAllocation.objects.filter(invoice=inv):
+                allocations = PaymentAllocation.objects.filter(invoice=inv)
+
+                for alloc in allocations:
                     balance -= float(alloc.allocation_amount)
 
                     ledger.append([
@@ -587,23 +742,44 @@ class StatementExportView(APIView):
                         "Payment",
                         alloc.payment.payment_no,
                         "-",
-                        f"{alloc.allocation_amount:,.2f}",
-                        f"{balance:,.2f}",
+                        f"${alloc.allocation_amount:,.2f}",
+                        f"${balance:,.2f}",
                     ])
 
-            table = Table(ledger, hAlign="LEFT")
+            table = Table(
+                ledger,
+                colWidths=[70, 70, 100, 70, 70, 80]
+            )
 
             table.setStyle(TableStyle([
-                ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#111827")),
-                ("TEXTCOLOR", (0,0), (-1,0), colors.white),
-                ("GRID", (0,0), (-1,-1), 0.3, colors.grey),
-                ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
-                ("FONTSIZE", (0,0), (-1,-1), 8),
-                ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#f9fafb")]),
-                ("PADDING", (0,0), (-1,-1), 6),
+
+                # HEADER ROW
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F2937")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+
+                # BODY
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#E5E7EB")),
+
+                # ALIGNMENT
+                ("ALIGN", (3, 1), (-1, -1), "RIGHT"),
+
+                # PADDING
+                ("PADDING", (0, 0), (-1, -1), 6),
             ]))
 
+            # ============================
+            # ZEBRA STRIPING (READABILITY BOOST)
+            # ============================
+            for i in range(1, len(ledger)):
+                if i % 2 == 0:
+                    table.setStyle(TableStyle([
+                        ("BACKGROUND", (0, i), (-1, i), colors.HexColor("#F9FAFB"))
+                    ]))
+
             elements.append(table)
+
             elements.append(PageBreak())
 
         doc.build(elements)
