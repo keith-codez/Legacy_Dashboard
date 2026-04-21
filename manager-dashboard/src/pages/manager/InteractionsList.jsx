@@ -2,38 +2,65 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MoreVertical } from "lucide-react";
 
-import interactionsData from "../../data/interactions.json";
-import tenantsData from "../../data/tenants.json";
+import { getInteractions, getTenants } from "../../api/api";
 
 function InteractionsList() {
   const navigate = useNavigate();
 
-  const [interactions] = useState(interactionsData);
+  const [interactions, setInteractions] = useState([]);
+  const [tenants, setTenants] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(null);
 
-  // Close menu on outside click
+  /* ---------------- FETCH DATA ---------------- */
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [iRes, tRes] = await Promise.all([
+          getInteractions(),
+          getTenants(),
+        ]);
+
+        setInteractions(iRes);
+        setTenants(tRes);
+      } catch (err) {
+        console.error("Failed to load interactions:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  /* ---------------- CLOSE MENU ---------------- */
   useEffect(() => {
     const handleClick = () => setMenuOpen(null);
     window.addEventListener("click", handleClick);
     return () => window.removeEventListener("click", handleClick);
   }, []);
 
+  /* ---------------- TENANT MAP ---------------- */
   const tenantMap = useMemo(() => {
     const map = {};
-    tenantsData.forEach((t) => (map[t.id] = t.company_name));
+    tenants.forEach((t) => (map[t.id] = t.company_name));
     return map;
-  }, []);
+  }, [tenants]);
 
+  /* ---------------- FILTER ---------------- */
   const filteredInteractions = interactions.filter((i) => {
     const q = searchQuery.toLowerCase();
+
     return (
-      i.subject.toLowerCase().includes(q) ||
-      i.type.toLowerCase().includes(q) ||
-      tenantMap[i.tenant_id]?.toLowerCase().includes(q)
+      i.subject?.toLowerCase().includes(q) ||
+      i.type?.toLowerCase().includes(q) ||
+      tenantMap[i.tenant]?.toLowerCase().includes(q)
     );
   });
 
+  /* ---------------- PRIORITY STYLES ---------------- */
   const getPriorityStyles = (priority) => {
     switch (priority) {
       case "High":
@@ -46,6 +73,11 @@ function InteractionsList() {
         return "bg-gray-100 text-gray-600";
     }
   };
+
+  /* ---------------- LOADING ---------------- */
+  if (loading) {
+    return <div className="p-6">Loading interactions...</div>;
+  }
 
   return (
     <div className="w-full h-full flex flex-col bg-gray-50">
@@ -92,10 +124,14 @@ function InteractionsList() {
             <tbody>
               {filteredInteractions.map((i) => (
                 <tr key={i.id} className="border-t hover:bg-gray-50 transition">
-                  <td className="p-4">{tenantMap[i.tenant_id]}</td>
+                  <td className="p-4">{tenantMap[i.tenant] || "—"}</td>
                   <td className="p-4">{i.type}</td>
                   <td className="p-4 font-medium">{i.subject}</td>
-                  <td className="p-4">{new Date(i.date).toLocaleDateString("en-GB")}</td>
+                  <td className="p-4">
+                    {i.date
+                      ? new Date(i.date).toLocaleDateString("en-GB")
+                      : "—"}
+                  </td>
                   <td className="p-4">
                     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getPriorityStyles(i.priority)}`}>
                       {i.priority}
@@ -137,7 +173,7 @@ function InteractionsList() {
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="font-semibold text-base">{i.subject}</h3>
-                  <p className="text-sm text-gray-500">{tenantMap[i.tenant_id]}</p>
+                  <p className="text-sm text-gray-500">{tenantMap[i.tenant] || "—"}</p>
                 </div>
 
                 <button
@@ -164,7 +200,12 @@ function InteractionsList() {
 
               <div className="mt-3 text-sm text-gray-600 space-y-2">
                 <p><strong>Type:</strong> {i.type}</p>
-                <p><strong>Date:</strong> {new Date(i.date).toLocaleDateString("en-GB")}</p>
+                <p>
+                  <strong>Date:</strong>{" "}
+                  {i.date
+                    ? new Date(i.date).toLocaleDateString("en-GB")
+                    : "—"}
+                </p>
                 <p>
                   <strong>Priority:</strong>{" "}
                   <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getPriorityStyles(i.priority)}`}>

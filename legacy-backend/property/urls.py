@@ -19,4 +19,10 @@ urlpatterns = [
 
     # Custom endpoints
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
+    path("reports/", ReportsView.as_view(), name="reports"),
+    path("tenants/<int:pk>/statement/", TenantStatementView.as_view()),
+    path("reports/export/portfolio/", PortfolioExportView.as_view()),
+    path("reports/export/statements/", StatementExportView.as_view()),
+    path("reports/revenue-trend/", RevenueTrendView.as_view(), name="revenue-trend"),
+    path("reports/occupancy-trend/", OccupancyTrendView.as_view(), name="occupancy-trend"),
 ]

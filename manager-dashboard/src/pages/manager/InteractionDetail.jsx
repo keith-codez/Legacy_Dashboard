@@ -1,14 +1,38 @@
 import { useParams, useNavigate } from "react-router-dom";
-import interactions from "../../data/interactions.json";
-import tenants from "../../data/tenants.json";
+import { useEffect, useState } from "react";
+import { getInteraction } from "../../api/api";
 
 function InteractionDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const interaction = interactions.find(i => i.id === Number(id));
+  const [interaction, setInteraction] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  if (!interaction) {
+  /* ---------------- FETCH ---------------- */
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await getInteraction(id);
+        setInteraction(data);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load interaction");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, [id]);
+
+  /* ---------------- STATES ---------------- */
+  if (loading) {
+    return <div className="p-8 text-center">Loading...</div>;
+  }
+
+  if (error || !interaction) {
     return (
       <div className="p-8 text-center">
         <h1 className="text-xl font-semibold">Interaction not found</h1>
@@ -22,17 +46,21 @@ function InteractionDetail() {
     );
   }
 
-  const tenant = tenants.find(t => t.id === interaction.tenant_id);
-
+  /* ---------------- HELPERS ---------------- */
   const getPriorityStyles = (priority) => {
     switch (priority) {
-      case "High": return "bg-red-100 text-red-700";
-      case "Medium": return "bg-yellow-100 text-yellow-700";
-      case "Low": return "bg-green-100 text-green-700";
-      default: return "bg-gray-100 text-gray-600";
+      case "High":
+        return "bg-red-100 text-red-700";
+      case "Medium":
+        return "bg-yellow-100 text-yellow-700";
+      case "Low":
+        return "bg-green-100 text-green-700";
+      default:
+        return "bg-gray-100 text-gray-600";
     }
   };
 
+  /* ---------------- UI ---------------- */
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
 
@@ -40,7 +68,7 @@ function InteractionDetail() {
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-2xl font-bold">{interaction.subject}</h1>
-          <p className="text-gray-500">{tenant?.company_name}</p>
+          <p className="text-gray-500">{interaction.tenant_name}</p>
         </div>
 
         <button
@@ -53,7 +81,11 @@ function InteractionDetail() {
 
       {/* Priority + Type */}
       <div className="flex items-center gap-3">
-        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getPriorityStyles(interaction.priority)}`}>
+        <span
+          className={`px-3 py-1 rounded-full text-sm font-semibold ${getPriorityStyles(
+            interaction.priority
+          )}`}
+        >
           {interaction.priority} Priority
         </span>
 
@@ -68,18 +100,22 @@ function InteractionDetail() {
         <div>
           <p className="text-sm text-gray-500">Date</p>
           <p className="font-semibold">
-            {new Date(interaction.date).toLocaleDateString("en-GB")}
+            {interaction.date
+              ? new Date(interaction.date).toLocaleDateString("en-GB")
+              : "-"}
           </p>
         </div>
 
         <div>
           <p className="text-sm text-gray-500">Recorded By</p>
-          <p className="font-semibold">{interaction.recorded_by}</p>
+          <p className="font-semibold">
+            {interaction.recorded_by || "-"}
+          </p>
         </div>
 
       </div>
 
-      {/* Notes Section */}
+      {/* Notes */}
       <div className="bg-white border rounded-xl p-6">
         <h2 className="font-semibold mb-3">Notes</h2>
         <p className="text-gray-700 leading-relaxed">
@@ -87,7 +123,7 @@ function InteractionDetail() {
         </p>
       </div>
 
-      {/* Timeline Style Block (visual upgrade) */}
+      {/* Timeline */}
       <div className="bg-gray-50 border rounded-xl p-6">
         <h2 className="font-semibold mb-4">Activity Snapshot</h2>
 
@@ -97,7 +133,10 @@ function InteractionDetail() {
           <div>
             <p className="font-medium">Interaction Recorded</p>
             <p className="text-sm text-gray-500">
-              {new Date(interaction.date).toLocaleDateString("en-GB")} by {interaction.recorded_by}
+              {interaction.date
+                ? new Date(interaction.date).toLocaleDateString("en-GB")
+                : "-"}{" "}
+              by {interaction.recorded_by || "-"}
             </p>
           </div>
         </div>

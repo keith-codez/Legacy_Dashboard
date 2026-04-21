@@ -107,6 +107,8 @@ class PaymentAllocationSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 class InteractionSerializer(serializers.ModelSerializer):
+    tenant_name = serializers.CharField(source="tenant.company_name", read_only=True)
+
     class Meta:
         model = Interaction
-        fields = '__all__'
+        fields = "__all__"

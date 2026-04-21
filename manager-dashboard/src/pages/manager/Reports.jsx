@@ -1,87 +1,149 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Download, Calendar } from "lucide-react";
+import { Download, Calendar, MoreVertical } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
-import tenants from "../../data/tenants.json";
-import { getTenantStatus } from "../../utils/tenantSelectors";
-
-import units from "../../data/units.json";
-import invoices from "../../data/invoices.json";
-import allocations from "../../data/payment_allocations.json";
+import {
+  getReports,
+  getDashboard,
+  getTenants,
+  exportPortfolio,
+  exportStatements,
+} from "../../api/api";
 
 import RevenueTrend from "../../components/RevenueTrend";
-import OccupancyTrend from "../../components/OccupancyTrend"; // placeholder for second trend chart
+import OccupancyTrend from "../../components/OccupancyTrend";
 
 function Reports() {
   const navigate = useNavigate();
 
+  const [period, setPeriod] = useState(new Date());
   const [selectedTenant, setSelectedTenant] = useState("all");
-  const [period, setPeriod] = useState(new Date("2025-02-01")); // use Date object for react-datepicker
 
-  /*
-  ========================
-  Portfolio Metrics
-  ========================
-  */
+  const [dashboard, setDashboard] = useState(null);
+  const [tenants, setTenants] = useState([]);
+  const [reportData, setReportData] = useState([]);
 
-  const totalInvoiced = invoices.reduce((sum, i) => sum + i.total_amount, 0);
-  const totalCollected = allocations.reduce((sum, a) => sum + a.allocation_amount, 0);
-  const outstanding = totalInvoiced - totalCollected;
+  const [loading, setLoading] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(null);
 
-  const activeTenants = getTenantStatus(t => t.status === "Active").length;
-  const occupiedUnits = units.filter(u => u.status === "Occupied").length;
-  const occupancyRate = Math.round((occupiedUnits / units.length) * 100);
+  const periodKey = useMemo(
+    () => period.toISOString().slice(0, 7),
+    [period]
+  );
 
-  /*
-  ========================
-  Tenant Statements
-  ========================
-  */
+  /* ---------------- DATA LOAD ---------------- */
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
 
-  const tenantStatements = useMemo(() => {
-    return tenants.map(t => {
-      const tenantInvoices = invoices.filter(i => i.tenant_id === t.id);
-      const invoiced = tenantInvoices.reduce((sum, i) => sum + i.total_amount, 0);
-      const tenantAllocations = allocations.filter(a => tenantInvoices.some(i => i.id === a.invoice_id));
-      const paid = tenantAllocations.reduce((sum, a) => sum + a.allocation_amount, 0);
-      const balance = invoiced - paid;
+      const [dash, tenantList, reports] = await Promise.all([
+        getDashboard(),
+        getTenants(),
+        getReports(selectedTenant, periodKey),
+      ]);
 
-      return {
-        tenant: t.company_name,
-        tenant_id: t.id,
-        invoiced,
-        paid,
-        balance
-      };
-    });
-  }, []);
+      setDashboard(dash);
+      setTenants(tenantList);
+      setReportData(Array.isArray(reports) ? reports : []);
 
-  const filteredStatements =
-    selectedTenant === "all"
-      ? tenantStatements
-      : tenantStatements.filter(s => s.tenant_id === Number(selectedTenant));
+      setLoading(false);
+    };
+
+    load();
+  }, [periodKey, selectedTenant]);
+
+  /* ---------------- FILTER ---------------- */
+  const filteredData = useMemo(() => {
+    if (selectedTenant === "all") return reportData;
+
+    return reportData.filter(
+      (r) => r.tenant_id === Number(selectedTenant)
+    );
+  }, [reportData, selectedTenant]);
+
+  /* ---------------- DOWNLOAD HELPER ---------------- */
+  const downloadPDF = (data, filename) => {
+    const blob = new Blob([data], { type: "application/pdf" });
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    window.URL.revokeObjectURL(url);
+  };
+
+  /* ---------------- EXPORT PORTFOLIO ---------------- */
+  const handleExportPortfolio = async () => {
+    try {
+      const res = await exportPortfolio();
+      downloadPDF(res.data, `portfolio_${periodKey}.pdf`);
+    } catch (err) {
+      console.error("Portfolio export failed", err);
+    }
+  };
+
+  /* ---------------- EXPORT TENANT STATEMENT ---------------- */
+  const handleExportTenant = async (tenantId) => {
+    try {
+      const res = await exportStatements(tenantId);
+      downloadPDF(res.data, `statement_${tenantId}.pdf`);
+    } catch (err) {
+      console.error("Statement export failed", err);
+    }
+  };
+
+  /* ---------------- EXPORT ALL ---------------- */
+  const handleExportAll = async () => {
+    try {
+      const res = await exportStatements(
+        selectedTenant === "all" ? null : selectedTenant
+      );
+      downloadPDF(res.data, `tenant_statements_${periodKey}.pdf`);
+    } catch (err) {
+      console.error("Export all failed", err);
+    }
+  };
+
+  const toggleMenu = (tenantId) => {
+    setMenuOpen(menuOpen === tenantId ? null : tenantId);
+  };
+
+  if (loading || !dashboard) {
+    return <div className="p-6">Loading reports...</div>;
+  }
 
   return (
     <div className="p-4 md:p-8 space-y-6">
 
-      {/* Header */}
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Statements & Reports</h1>
-          <p className="text-gray-500">Financial overview and tenant statements</p>
+          <p className="text-gray-500">
+            Financial intelligence dashboard
+          </p>
         </div>
 
-        <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-          <Download className="w-4 h-4"/>
+        <button
+          onClick={handleExportPortfolio}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded"
+        >
+          <Download className="w-4 h-4" />
           Export Portfolio Report
         </button>
       </div>
 
-      {/* Period Selector */}
-      <div className="bg-white shadow rounded-lg p-4 flex items-center gap-3 w-fit cursor-pointer">
-        <Calendar className="w-4 h-4 text-gray-500 pointer-events-none"/>
+      {/* PERIOD FILTER */}
+      <div className="bg-white shadow rounded-lg p-4 flex items-center gap-3 w-fit">
+        <Calendar className="w-4 h-4 text-gray-500" />
+
         <DatePicker
           selected={period}
           onChange={(date) => setPeriod(date)}
@@ -91,91 +153,214 @@ function Reports() {
         />
       </div>
 
-      {/* Portfolio Summary */}
+      {/* KPI GRID */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="bg-white shadow rounded-lg p-4">
-          <p className="text-sm text-gray-500">Total Invoiced</p>
-          <p className="text-lg font-bold">${totalInvoiced.toLocaleString()}</p>
-        </div>
-        <div className="bg-white shadow rounded-lg p-4">
-          <p className="text-sm text-gray-500">Collected</p>
-          <p className="text-lg font-bold text-green-600">${totalCollected.toLocaleString()}</p>
-        </div>
-        <div className="bg-white shadow rounded-lg p-4">
-          <p className="text-sm text-gray-500">Outstanding</p>
-          <p className="text-lg font-bold text-red-600">${outstanding.toLocaleString()}</p>
-        </div>
-        <div className="bg-white shadow rounded-lg p-4">
-          <p className="text-sm text-gray-500">Active Tenants</p>
-          <p className="text-lg font-bold">{activeTenants}</p>
-        </div>
-        <div className="bg-white shadow rounded-lg p-4">
-          <p className="text-sm text-gray-500">Occupancy</p>
-          <p className="text-lg font-bold">{occupancyRate}%</p>
-        </div>
+        <Metric label="Total Invoiced" value={dashboard.total_invoiced} />
+        <Metric label="Collected" value={dashboard.total_paid} green />
+        <Metric label="Outstanding" value={dashboard.outstanding} red />
+        <Metric label="Active Tenants" value={dashboard.total_tenants} />
+        <Metric label="Collection Rate" value={`${dashboard.collection_rate}%`} />
       </div>
 
-      {/* Trend Charts */}
+      {/* TREND CHARTS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <RevenueTrend />
-        <OccupancyTrend /> {/* second trend chart placeholder */}
+        <OccupancyTrend />
       </div>
 
-      {/* Tenant Statements Section */}
+      {/* TABLE */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
 
-        {/* Section Header */}
-        <div className="p-4 border-b flex flex-col md:flex-row justify-between gap-4">
+        <div className="p-4 border-b flex flex-col md:flex-row md:justify-between md:items-center gap-3">
           <h2 className="font-semibold">Tenant Statements</h2>
-          <div className="flex gap-3">
+
+          <div className="flex gap-2 w-full md:w-auto">
             <select
               value={selectedTenant}
               onChange={(e) => setSelectedTenant(e.target.value)}
-              className="border px-3 py-2 rounded"
+              className="border px-2 py-2 rounded w-1/2 md:w-auto"
             >
               <option value="all">All Tenants</option>
-              {tenants.map(t => (
-                <option key={t.id} value={t.id}>{t.company_name}</option>
+              {tenants.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.company_name}
+                </option>
               ))}
             </select>
 
-            <button className="text-blue-600 text-sm hover:underline">
-              Export Statements
+            <button
+              onClick={handleExportAll}
+              className="bg-black text-white px-2 py-2 rounded w-1/2 md:w-auto whitespace-nowrap"
+            >
+              Export All
             </button>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
+        {/* DESKTOP TABLE */}
+        <div className="hidden md:block">
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
                 <th className="p-4 text-left">Tenant</th>
-                <th className="p-4 text-left">Invoiced</th>
-                <th className="p-4 text-left">Paid</th>
-                <th className="p-4 text-left">Balance</th>
+                <th className="p-4">Invoiced</th>
+                <th className="p-4">Paid</th>
+                <th className="p-4">Balance</th>
+                <th className="p-4"></th>
               </tr>
             </thead>
+
             <tbody>
-              {filteredStatements.map((s, index) => (
-                <tr key={index} className="border-t hover:bg-gray-50">
+              {filteredData.map((row) => (
+                <tr key={row.tenant_id} className="border-t hover:bg-gray-50">
+
                   <td
-                    onClick={() => navigate(`/manager/statements/${s.tenant_id}`)}
-                    className="p-4 font-medium text-blue-600 cursor-pointer hover:underline"
+                    className="p-4 text-blue-600 cursor-pointer"
+                    onClick={() =>
+                      navigate(`/manager/statements/${row.tenant_id}`)
+                    }
                   >
-                    {s.tenant}
+                    {row.tenant}
                   </td>
-                  <td className="p-4">${s.invoiced.toLocaleString()}</td>
-                  <td className="p-4 text-green-600">${s.paid.toLocaleString()}</td>
-                  <td className="p-4 text-red-600 font-semibold">${s.balance.toLocaleString()}</td>
+
+                  <td className="p-4">${row.invoiced}</td>
+                  <td className="p-4 text-green-600">${row.paid}</td>
+                  <td className="p-4 text-red-600 font-semibold">
+                    ${row.balance}
+                  </td>
+
+                  <td className="p-4 relative text-right">
+                    <button onClick={() => toggleMenu(row.tenant_id)}>
+                      <MoreVertical className="w-5 h-5" />
+                    </button>
+
+                    {menuOpen === row.tenant_id && (
+                      <div className="absolute right-2 bottom-full mb-2 w-40 bg-white border shadow rounded z-50">
+
+                        <button
+                          onClick={() =>
+                            navigate(`/manager/statements/${row.tenant_id}`)
+                          }
+                          className="block w-full text-left px-3 py-2 hover:bg-gray-100"
+                        >
+                          View Statement
+                        </button>
+
+                        <button
+                          onClick={() => handleExportTenant(row.tenant_id)}
+                          className="block w-full text-left px-3 py-2 hover:bg-gray-100"
+                        >
+                          Export PDF
+                        </button>
+
+                      </div>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
 
+        {/* MOBILE VIEW */}
+        <div className="md:hidden divide-y">
+          {filteredData.map((row) => (
+            <MobileRow
+              key={row.tenant_id}
+              row={row}
+              navigate={navigate}
+              handleExportTenant={handleExportTenant}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- KPI CARD ---------------- */
+const Metric = ({ label, value, green, red }) => (
+  <div className="bg-white shadow rounded p-4">
+    <p className="text-sm text-gray-500">{label}</p>
+    <p
+      className={`text-lg font-bold ${
+        green ? "text-green-600" : red ? "text-red-600" : ""
+      }`}
+    >
+      {typeof value === "number"
+        ? `$${value.toLocaleString()}`
+        : value}
+    </p>
+  </div>
+);
+
+/* ---------------- MOBILE ROW ---------------- */
+function MobileRow({ row, navigate, handleExportTenant }) {
+  const [activeTab, setActiveTab] = useState("summary");
+
+  return (
+    <div className="p-4">
+
+      <div
+        className="flex justify-between items-center cursor-pointer"
+        onClick={() => navigate(`/manager/statements/${row.tenant_id}`)}
+      >
+        <h3 className="text-blue-600 font-medium">{row.tenant}</h3>
       </div>
 
+      <div className="flex gap-2 mt-3 text-sm">
+        {["summary", "financials", "actions"].map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-3 py-1 rounded ${
+              activeTab === tab
+                ? "bg-black text-white"
+                : "bg-gray-100"
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-3 text-sm">
+
+        {activeTab === "summary" && (
+          <p><strong>Tenant:</strong> {row.tenant}</p>
+        )}
+
+        {activeTab === "financials" && (
+          <div className="space-y-1">
+            <p>Invoiced: ${row.invoiced}</p>
+            <p className="text-green-600">Paid: ${row.paid}</p>
+            <p className="text-red-600 font-semibold">
+              Balance: ${row.balance}
+            </p>
+          </div>
+        )}
+
+        {activeTab === "actions" && (
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() =>
+                navigate(`/manager/statements/${row.tenant_id}`)
+              }
+              className="text-left px-3 py-2 bg-gray-100 rounded"
+            >
+              View Statement
+            </button>
+
+            <button
+              onClick={() => handleExportTenant(row.tenant_id)}
+              className="text-left px-3 py-2 bg-gray-100 rounded"
+            >
+              Export PDF
+            </button>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }

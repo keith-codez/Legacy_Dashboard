@@ -137,3 +137,60 @@ export const createUnit = async (data) => {
   const res = await API.post("/units/", data);
   return res.data;
 };
+export const getInteractions = async () => {
+  const res = await API.get("/interactions/");
+  return res.data;
+};
+
+export const getInteraction = async (id) => {
+  const res = await API.get(`/interactions/${id}/`);
+  return res.data;
+};
+
+
+export const createInteraction = async (data) => {
+  const res = await API.post("/interactions/", data);
+  return res.data;
+};
+
+export const getReports = async (tenant = "all", period = "") => {
+  const params = new URLSearchParams();
+
+  if (tenant && tenant !== "all") params.append("tenant", tenant);
+  if (period) params.append("period", period);
+
+  const res = await API.get(`/reports/?${params.toString()}`);
+  return res.data;
+};
+
+export const getTenantStatement = async (id) => {
+  const res = await API.get(`/tenants/${id}/statement/`);
+  return res.data;
+};
+
+
+export const exportPortfolio = (period = null) => {
+  return API.get("/reports/export/portfolio/", {
+    params: period ? { period } : {},
+    responseType: "blob",
+  });
+};
+
+export const exportStatements = (tenant = "all") => {
+  return API.get("/reports/export/statements/", {
+    params: {
+      tenant,
+    },
+    responseType: "blob",
+  });
+};
+
+export const getRevenueTrend = async () => {
+  const res = await API.get("/reports/revenue-trend/");
+  return res.data;
+};
+
+export const getOccupancyTrend = async () => {
+  const res = await API.get("/reports/occupancy-trend/");
+  return res.data;
+};
