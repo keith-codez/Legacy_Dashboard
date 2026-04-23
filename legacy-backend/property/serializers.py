@@ -42,18 +42,22 @@ class UnitSerializer(serializers.ModelSerializer):
 
         return value
     
-    
 class LeaseSerializer(serializers.ModelSerializer):
     tenant_name = serializers.CharField(source="tenant.company_name", read_only=True)
-    unit_no = serializers.CharField(source="unit_no_snapshot", read_only=True)
-    unit_type = serializers.CharField(source="unit_type_snapshot", read_only=True)
-    base_rent = serializers.DecimalField(source="base_rent_snapshot", max_digits=10, decimal_places=2, read_only=True)
+
+    unit_no = serializers.CharField(source="unit.unit_no", read_only=True)
+    unit_type = serializers.CharField(source="unit.unit_type", read_only=True)
+    base_rent = serializers.DecimalField(
+        source="unit.base_rent",
+        max_digits=10,
+        decimal_places=2,
+        read_only=True
+    )
 
     class Meta:
         model = Lease
         fields = "__all__"
         read_only_fields = ("lease_number",)
-
 
 class InvoiceSerializer(serializers.ModelSerializer):
     paid_amount = serializers.SerializerMethodField()

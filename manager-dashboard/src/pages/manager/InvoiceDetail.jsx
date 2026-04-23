@@ -1,6 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { Download } from "lucide-react";
 import { useEffect, useState } from "react";
+import { downloadInvoicePDF } from "../../api/api";
+
 
 import { getInvoice, getInvoiceAllocations } from "../../api/api";
 
@@ -49,6 +51,25 @@ function InvoiceDetail() {
     );
   }
 
+  const handleDownload = async () => {
+    try {
+      const blob = await downloadInvoicePDF(id);
+
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = invoice.invoice_no + ".pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("PDF download failed", err);
+    }
+  };
+
   const statusStyles = {
     Paid: "bg-green-100 text-green-700",
     "Partially Paid": "bg-yellow-100 text-yellow-700",
@@ -65,16 +86,21 @@ function InvoiceDetail() {
           <p className="text-gray-500">{invoice.tenant_name}</p>
         </div>
 
-        <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded">
+        <button
+          onClick={handleDownload}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded"
+        >
           <Download className="w-4 h-4" />
           Download PDF
         </button>
       </div>
 
       {/* STATUS */}
-      <span className={`text-sm px-3 py-1 rounded-full ${statusStyles[invoice.status]}`}>
-        {invoice.status}
-      </span>
+      <div className="flex items-center gap-4">
+        <span className={`text-md italic px-3 py-1 rounded-full ${statusStyles[invoice.status]}`}>
+          {invoice.status}
+        </span>
+      </div>
 
       {/* SUMMARY */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

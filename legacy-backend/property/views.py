@@ -8,6 +8,7 @@ from itertools import chain
 from django.http import HttpResponse
 from reportlab.pdfgen import canvas
 from .models import *
+from reportlab.lib.units import mm
 
 
 
@@ -262,6 +263,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                 )
             )
         )
+    
 
     @action(detail=False, methods=["get"])
     def outstanding(self, request):
@@ -285,6 +287,229 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                 })
 
         return Response(data)
+    
+
+    @action(detail=True, methods=["get"], url_path="pdf")
+    def download_pdf(self, request, pk=None):
+        invoice = self.get_object()
+
+        allocations = invoice.paymentallocation_set.select_related("payment")
+
+        paid_amount = allocations.aggregate(
+            total=Coalesce(
+                Sum("allocation_amount"),
+                Value(0),
+                output_field=DecimalField()
+            )
+        )["total"]
+
+        balance = invoice.total_amount - paid_amount
+
+        response = HttpResponse(content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{invoice.invoice_no}.pdf"'
+
+        doc = SimpleDocTemplate(response, pagesize=A4, rightMargin=30, leftMargin=30)
+        styles = getSampleStyleSheet()
+
+        elements = []
+
+        # ================= CUSTOM STYLES =================
+        label_style = ParagraphStyle(
+            name="Label",
+            fontName="Helvetica-Bold",
+            fontSize=10,
+            textColor=colors.black,
+        )
+
+        value_style = ParagraphStyle(
+            name="Value",
+            fontName="Helvetica",
+            fontSize=10,
+            textColor=colors.black,
+        )
+
+        # ================= HEADER =================
+        elements.append(Paragraph("INVOICE", styles["Title"]))
+        elements.append(Spacer(1, 12))
+
+        # ================= INFO GRID (NO HTML TAGS) =================
+        info_data = [
+            [Paragraph("Invoice No", label_style), Paragraph(str(invoice.invoice_no), value_style)],
+            [Paragraph("Tenant", label_style), Paragraph(invoice.tenant.company_name, value_style)],
+            [Paragraph("Issue Date", label_style), Paragraph(str(invoice.issue_date), value_style)],
+            [Paragraph("Due Date", label_style), Paragraph(str(invoice.due_date), value_style)],
+        ]
+
+        info_table = Table(info_data, colWidths=[80 * mm, 80 * mm])
+        info_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.lightgrey),
+            ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.lightgrey),
+            ("PADDING", (0, 0), (-1, -1), 8),
+        ]))
+
+        elements.append(info_table)
+        elements.append(Spacer(1, 20))
+
+        # ================= BILLING TABLE =================
+        data = [
+            ["Description", "Amount"],
+            [f"{invoice.type} ({invoice.period_start} - {invoice.period_end})", f"${invoice.total_amount}"],
+        ]
+
+        table = Table(data, colWidths=[120 * mm, 40 * mm])
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f2937")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("PADDING", (0, 0), (-1, -1), 10),
+        ]))
+
+        elements.append(table)
+        elements.append(Spacer(1, 20))
+
+        # ================= PAYMENTS (ONLY IF EXISTS) =================
+        if allocations.exists():
+            payment_data = [["Payment No", "Date", "Amount"]]
+
+            for a in allocations:
+                payment_data.append([
+                    a.payment.payment_no,
+                    str(a.payment.payment_date),
+                    f"${a.allocation_amount}"
+                ])
+
+            payment_table = Table(payment_data, colWidths=[60 * mm, 40 * mm, 40 * mm])
+            payment_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#374151")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("PADDING", (0, 0), (-1, -1), 8),
+            ]))
+
+            elements.append(Paragraph("Payments", styles["Heading2"]))
+            elements.append(Spacer(1, 8))
+            elements.append(payment_table)
+            elements.append(Spacer(1, 20))
+
+        # ================= SUMMARY =================
+        summary_data = [
+            ["Total", f"${invoice.total_amount}"],
+            ["Paid", f"${paid_amount}"],
+            ["Balance", f"${balance}"],
+        ]
+
+        summary_table = Table(summary_data, colWidths=[100 * mm, 60 * mm])
+        summary_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
+            ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+            ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
+            ("PADDING", (0, 0), (-1, -1), 10),
+            ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+            ("TEXTCOLOR", (1, 2), (1, 2), colors.red),
+        ]))
+
+        elements.append(summary_table)
+
+        doc.build(elements)
+
+        return response
+        invoice = self.get_object()
+
+        allocations = invoice.paymentallocation_set.select_related("payment")
+
+        paid_amount = allocations.aggregate(
+            total=Coalesce(
+                Sum("allocation_amount"),
+                Value(0),
+                output_field=DecimalField()
+            )
+        )["total"]
+
+        balance = invoice.total_amount - paid_amount
+
+        response = HttpResponse(content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{invoice.invoice_no}.pdf"'
+
+        doc = SimpleDocTemplate(response, pagesize=A4, rightMargin=30, leftMargin=30)
+        styles = getSampleStyleSheet()
+
+        elements = []
+
+        # ================= HEADER =================
+        elements.append(Paragraph("<b>INVOICE</b>", styles["Title"]))
+        elements.append(Spacer(1, 12))
+
+        # ================= INFO GRID =================
+
+        elements.append(info_table)
+        elements.append(Spacer(1, 20))
+
+        # ================= BILLING TABLE =================
+        data = [
+            ["Description", "Amount"],
+            [f"{invoice.type} ({invoice.period_start} - {invoice.period_end})", f"${invoice.total_amount}"],
+        ]
+
+        table = Table(data, colWidths=[120 * mm, 40 * mm])
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f2937")),  # dark header
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("PADDING", (0, 0), (-1, -1), 10),
+        ]))
+
+        elements.append(table)
+        elements.append(Spacer(1, 20))
+
+        # ================= PAYMENTS (ONLY IF EXISTS) =================
+        if allocations.exists():
+            payment_data = [["Payment No", "Date", "Amount"]]
+
+            for a in allocations:
+                payment_data.append([
+                    a.payment.payment_no,
+                    str(a.payment.payment_date),
+                    f"${a.allocation_amount}"
+                ])
+
+            payment_table = Table(payment_data, colWidths=[60 * mm, 40 * mm, 40 * mm])
+            payment_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#374151")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("PADDING", (0, 0), (-1, -1), 8),
+            ]))
+
+            elements.append(Paragraph("<b>Payments</b>", styles["Heading2"]))
+            elements.append(Spacer(1, 8))
+            elements.append(payment_table)
+            elements.append(Spacer(1, 20))
+
+        # ================= SUMMARY BOX =================
+        summary_data = [
+            ["Total", f"${invoice.total_amount}"],
+            ["Paid", f"${paid_amount}"],
+            ["Balance", f"${balance}"],
+        ]
+
+        summary_table = Table(summary_data, colWidths=[100 * mm, 60 * mm])
+        summary_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
+            ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+            ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
+            ("PADDING", (0, 0), (-1, -1), 10),
+            ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+            ("TEXTCOLOR", (1, 2), (1, 2), colors.red),  # highlight balance
+        ]))
+
+        elements.append(summary_table)
+
+        doc.build(elements)
+
+        return response
     
 
 # ---------------- PAYMENTS ----------------
@@ -784,3 +1009,6 @@ class StatementExportView(APIView):
 
         doc.build(elements)
         return response
+    
+
+    

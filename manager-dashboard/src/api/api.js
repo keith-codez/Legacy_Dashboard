@@ -199,3 +199,11 @@ export const getTenantOutstandingBalances = async () => {
   const res = await API.get("/reports/tenant-outstanding-balances/");
   return res.data;
 };
+
+export const downloadInvoicePDF = async (id) => {
+  const res = await API.get(`/invoices/${id}/pdf/`, {
+    responseType: "blob",
+  });
+
+  return res.data;
+};

@@ -66,12 +66,25 @@ class Lease(models.Model):
     
     def save(self, *args, **kwargs):
         is_new = self.pk is None
+
         super().save(*args, **kwargs)
 
-        if is_new and not self.lease_number:
-            self.lease_number = f"L-{self.id:03d}"
-            super().save(update_fields=["lease_number"])
+        if is_new:
+            if not self.lease_number:
+                self.lease_number = f"L-{self.id:03d}"
 
+            # populate snapshots (optional but recommended)
+            if self.unit:
+                self.unit_no_snapshot = self.unit.unit_no
+                self.unit_type_snapshot = self.unit.unit_type
+                self.base_rent_snapshot = self.unit.base_rent
+
+            super().save(update_fields=[
+                "lease_number",
+                "unit_no_snapshot",
+                "unit_type_snapshot",
+                "base_rent_snapshot",
+            ])
 
 class Invoice(models.Model):
     invoice_no = models.CharField(max_length=50, unique=True, blank=True)

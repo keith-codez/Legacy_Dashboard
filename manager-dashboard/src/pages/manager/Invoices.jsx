@@ -7,7 +7,7 @@ import {
   Download,
   Eye
 } from "lucide-react";
-
+import { downloadInvoicePDF } from "../../api/api";
 import { getInvoices } from "../../api/api";
 
 function InvoicesList() {
@@ -39,6 +39,38 @@ function InvoicesList() {
     };
 
     fetchData();
+  }, []);
+
+  const handleDownloadPDF = async (id, invoiceNo) => {
+    try {
+      const blob = await downloadInvoicePDF(id);
+
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${invoiceNo}.pdf`;
+
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to download invoice PDF", err);
+      alert("PDF download failed");
+    }
+  };
+
+  /* ---------------- CLICK OUTSIDE (CLOSE MENUS) ---------------- */
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setMenuOpen(null);
+      setOpenMobileMenu(null);
+    };
+
+    window.addEventListener("click", handleClickOutside);
+    return () => window.removeEventListener("click", handleClickOutside);
   }, []);
 
   /* ---------------- SORT ---------------- */
@@ -95,11 +127,7 @@ function InvoicesList() {
     };
 
     return (
-      <span
-        className={`px-2 py-1 text-xs rounded-full font-medium ${
-          styles[status] || "bg-gray-100"
-        }`}
-      >
+      <span className={`px-2 py-1 text-xs rounded-full font-medium ${styles[status] || "bg-gray-100"}`}>
         {status}
       </span>
     );
@@ -135,9 +163,8 @@ function InvoicesList() {
       {/* CONTENT */}
       <div className="flex-1 overflow-y-auto p-4">
 
-        {/* ================= DESKTOP TABLE ================= */}
+        {/* DESKTOP TABLE */}
         <div className="hidden md:block bg-white rounded-lg shadow overflow-x-auto">
-
           <table className="w-full min-w-[1000px]">
             <thead className="bg-gray-100 text-sm font-semibold">
               <tr>
@@ -161,8 +188,9 @@ function InvoicesList() {
 
             <tbody>
               {filteredInvoices.map((inv) => (
-                <tr key={inv.id} className="border-t hover:bg-gray-50 cursor-pointer"
-                  onClick={() => navigate(`/manager/invoices/${inv.id}`)}>
+                <tr key={inv.id} className="border-t hover:bg-gray-50">
+
+                  {/* CLICKABLE CELL ONLY */}
                   <td
                     className="p-4 font-medium text-blue-600 cursor-pointer"
                     onClick={() => navigate(`/manager/invoices/${inv.id}`)}
@@ -170,9 +198,7 @@ function InvoicesList() {
                     {inv.invoice_no}
                   </td>
 
-                  <td className="p-4">
-                    {inv.tenant_name}
-                  </td>
+                  <td className="p-4">{inv.tenant_name}</td>
 
                   <td className="p-4">
                     {inv.issue_date ? new Date(inv.issue_date).toLocaleDateString("en-GB") : ""}
@@ -192,28 +218,40 @@ function InvoicesList() {
                     ${Number(inv.balance || 0).toLocaleString()}
                   </td>
 
-                  <td className="p-4">
-                    {getStatusBadge(inv.status)}
-                  </td>
+                  <td className="p-4">{getStatusBadge(inv.status)}</td>
 
+                  {/* ACTIONS */}
                   <td className="p-4 text-center relative">
                     <button
-                      onClick={() => setMenuOpen(menuOpen === inv.id ? null : inv.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMenuOpen(menuOpen === inv.id ? null : inv.id);
+                      }}
                       className="p-2 hover:bg-gray-100"
                     >
                       <MoreVertical size={18} />
                     </button>
 
                     {menuOpen === inv.id && (
-                      <div className="absolute right-0 mt-2 w-40 bg-white border rounded shadow">
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute right-[60px] top-[0px] mt-1 w-30 bg-white text-sm border rounded shadow z-50"
+                      >
                         <button
                           onClick={() => navigate(`/manager/invoices/${inv.id}`)}
-                          className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                          className="flex items-center gap-2 w-full px-4 py-1 hover:bg-gray-100"
                         >
+                          <Eye size={14} />
                           View
                         </button>
 
-                        <button className="flex items-center gap-2 w-full px-4 py-2 hover:bg-gray-100">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadPDF(inv.id, inv.invoice_no);
+                          }}
+                          className="flex items-center gap-2 w-full px-4 py-2 hover:bg-gray-100"
+                        >
                           <Download size={14} />
                           PDF
                         </button>
@@ -227,67 +265,73 @@ function InvoicesList() {
           </table>
         </div>
 
-        {/* ================= MOBILE CARDS (RESTORED) ================= */}
-        <div className="md:hidden space-y-4">
+        {/* MOBILE (unchanged logic but fixed propagation) */}
+       <div className="md:hidden space-y-4">
 
-          {filteredInvoices.map((inv) => (
-            <div key={inv.id} className="bg-white shadow rounded-xl p-4 relative">
+      {filteredInvoices.map((inv) => (
+        <div key={inv.id} className="bg-white shadow rounded-xl p-4 relative">
 
-              <div className="flex justify-between items-start">
+          <div className="flex justify-between items-start">
 
-                <div>
-                  <h3 className="font-semibold">{inv.invoice_no}</h3>
-                  <p className="text-sm text-gray-500">{inv.tenant_name}</p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {getStatusBadge(inv.status)}
-
-                  <button
-                    onClick={() =>
-                      setOpenMobileMenu(openMobileMenu === inv.id ? null : inv.id)
-                    }
-                    className="p-1 hover:bg-gray-100 rounded"
-                  >
-                    <MoreVertical className="w-5 h-5" />
-                  </button>
-                </div>
-
-              </div>
-
-              <div className="mt-3 text-sm text-gray-600 space-y-1">
-
-                <p><strong>Issue:</strong> {inv.issue_date ? new Date(inv.issue_date).toLocaleDateString("en-GB") : ""}</p>
-                <p><strong>Due:</strong> {inv.due_date ? new Date(inv.due_date).toLocaleDateString("en-GB") : ""}</p>
-                <p><strong>Type:</strong> {inv.type}</p>
-                <p><strong>Total:</strong> ${Number(inv.total_amount || 0).toLocaleString()}</p>
-                <p className="text-red-600 font-semibold">
-                  <strong>Balance:</strong> ${Number(inv.balance || 0).toLocaleString()}
-                </p>
-
-              </div>
-
-              {openMobileMenu === inv.id && (
-                <div className="absolute right-4 top-12 bg-white border rounded-lg shadow w-40 z-10">
-
-                  <button
-                    onClick={() => navigate(`/manager/invoices/${inv.id}`)}
-                    className="flex items-center gap-2 w-full px-3 py-2 hover:bg-gray-100 text-sm"
-                  >
-                    <Eye className="w-4 h-4" />
-                    View
-                  </button>
-
-                  <button className="flex items-center gap-2 w-full px-3 py-2 hover:bg-gray-100 text-sm">
-                    <Download className="w-4 h-4" />
-                    PDF
-                  </button>
-
-                </div>
-              )}
-
+            <div>
+              <h3 className="font-semibold">{inv.invoice_no}</h3>
+              <p className="text-sm text-gray-500">{inv.tenant_name}</p>
             </div>
-          ))}
+
+            <div className="flex items-center gap-2">
+              {getStatusBadge(inv.status)}
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation(); // critical fix
+                  setOpenMobileMenu(openMobileMenu === inv.id ? null : inv.id);
+                }}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
+            </div>
+
+          </div>
+
+          <div className="mt-3 text-sm text-gray-600 space-y-1">
+            <p><strong>Issue:</strong> {inv.issue_date ? new Date(inv.issue_date).toLocaleDateString("en-GB") : ""}</p>
+            <p><strong>Due:</strong> {inv.due_date ? new Date(inv.due_date).toLocaleDateString("en-GB") : ""}</p>
+            <p><strong>Type:</strong> {inv.type}</p>
+            <p><strong>Total:</strong> ${Number(inv.total_amount || 0).toLocaleString()}</p>
+            <p className="text-red-600 font-semibold">
+              <strong>Balance:</strong> ${Number(inv.balance || 0).toLocaleString()}
+            </p>
+          </div>
+
+          {openMobileMenu === inv.id && (
+            <div
+              onClick={(e) => e.stopPropagation()} // prevents auto-close
+              className="absolute right-4 top-12 bg-white border rounded-lg shadow w-40 z-50"
+            >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/manager/invoices/${inv.id}`);
+                }}
+                className="flex items-center gap-2 w-full px-3 py-2 hover:bg-gray-100 text-sm"
+              >
+                <Eye className="w-4 h-4" />
+                View
+              </button>
+
+              <button
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-2 w-full px-3 py-2 hover:bg-gray-100 text-sm"
+              >
+                <Download className="w-4 h-4" />
+                PDF
+              </button>
+            </div>
+          )}
+
+        </div>
+      ))}
 
         </div>
 
