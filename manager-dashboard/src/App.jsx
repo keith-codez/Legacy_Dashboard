@@ -25,7 +25,7 @@ import UnitDetail from "./pages/manager/UnitDetail";
 import EditUnit from "./pages/manager/EditUnit";
 import LeaseDetail from "./pages/manager/LeaseDetail";
 import CreateLease from "./pages/manager/CreateLease";
-
+import ProtectedRoute from "./components/ProtectedRoute";
 
 export default function App() {
   return (
@@ -36,7 +36,14 @@ export default function App() {
         <Route path="/" element={<Login />} />
 
         {/* Manager Dashboard */}
-        <Route path="/manager" element={<DashboardLayout />}>
+        <Route
+          path="/manager"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Dashboard />} />
           <Route path="tenants" element={<TenantList />} />
           <Route path="tenants/:id" element={<TenantDetails />} />
