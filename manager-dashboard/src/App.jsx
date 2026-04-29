@@ -33,17 +33,21 @@ import OwnerTenantList from "./pages/owner/Tenants";
 import OwnerReports from "./pages/owner/Reports";
 import OwnerTenantDetails from "./pages/owner/TenantDetails";
 
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
 
         {/* Owner Dashboard */}
-        <Route path="/owner" element={
-          <ProtectedRoute allowedRoles={["shareholder"]}>
-            <OwnerLayout />
-          </ProtectedRoute>
-        }>
+        <Route
+          path="/owner"
+          element={
+            <ProtectedRoute allowedRoles={["owner"]}>
+              <OwnerLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<OwnerDashboard />} />
           <Route path="tenants" element={<OwnerTenantList />} />
           <Route path="tenants/:id" element={<OwnerTenantDetails />} />
@@ -57,7 +61,7 @@ export default function App() {
         <Route
           path="/manager"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["manager"]}>
               <DashboardLayout />
             </ProtectedRoute>
           }

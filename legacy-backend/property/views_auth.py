@@ -5,6 +5,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
+
+
+from .tokens import CustomRefreshToken
+
 class LoginView(APIView):
     permission_classes = []
 
@@ -17,9 +21,10 @@ class LoginView(APIView):
         if not user:
             return Response({"error": "Invalid credentials"}, status=400)
 
-        refresh = RefreshToken.for_user(user)
+        refresh = CustomRefreshToken.for_user(user)
+        access = refresh.access_token
 
-        role = user.groups.first().name if user.groups.exists() else "manager"
+        role = access.get("role")
 
         response = Response({
             "message": "Login successful",
@@ -28,7 +33,7 @@ class LoginView(APIView):
 
         response.set_cookie(
             key="access",
-            value=str(refresh.access_token),
+            value=str(access),
             httponly=True,
             samesite="Lax",
             secure=False,
@@ -62,5 +67,5 @@ class MeView(APIView):
         return Response({
             "username": request.user.username,
             "email": request.user.email,
-            "role": request.user.groups.first().name if request.user.groups.exists() else "manager"
+            "role": getattr(request, "role", "none")
         })

@@ -22,7 +22,7 @@ export default function Login() {
 
       const role = res.data.role;
 
-      if (role === "shareholder") {
+      if (role === "owner") {
         navigate("/owner");
       } else {
         navigate("/manager");

@@ -19,10 +19,9 @@ export default function ProtectedRoute({ children, allowedRoles }) {
 
   const role = user.role;
 
-  // HARD BLOCK CROSS-ROLE ACCESS
+  // STRICT ROLE ENFORCEMENT
   if (allowedRoles && !allowedRoles.includes(role)) {
-    const redirect = role === "shareholder" ? "/owner" : "/manager";
-    return <Navigate to={redirect} replace />;
+    return <Navigate to={role === "owner" ? "/owner" : "/manager"} replace />;
   }
 
   return children;
