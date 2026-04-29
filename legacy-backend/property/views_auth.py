@@ -19,16 +19,18 @@ class LoginView(APIView):
 
         refresh = RefreshToken.for_user(user)
 
+        role = user.groups.first().name if user.groups.exists() else "manager"
+
         response = Response({
             "message": "Login successful",
-            "role": getattr(user, "role", "manager")
+            "role": role
         })
 
         response.set_cookie(
             key="access",
             value=str(refresh.access_token),
             httponly=True,
-            samesite="Lax",   # IMPORTANT CHANGE
+            samesite="Lax",
             secure=False,
         )
 
@@ -36,9 +38,10 @@ class LoginView(APIView):
             key="refresh",
             value=str(refresh),
             httponly=True,
-            samesite="Lax",   # IMPORTANT CHANGE
+            samesite="Lax",
             secure=False,
         )
+
         return response
 
 
@@ -59,4 +62,5 @@ class MeView(APIView):
         return Response({
             "username": request.user.username,
             "email": request.user.email,
+            "role": request.user.groups.first().name if request.user.groups.exists() else "manager"
         })

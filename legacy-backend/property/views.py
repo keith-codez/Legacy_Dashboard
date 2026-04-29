@@ -10,6 +10,7 @@ from reportlab.pdfgen import canvas
 from .models import *
 from reportlab.lib.units import mm
 
+from .permissions import IsManagerOrReadOnly
 
 
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
@@ -123,6 +124,7 @@ class DashboardView(APIView):
 class TenantViewSet(viewsets.ModelViewSet):
     queryset = Tenant.objects.all()
     serializer_class = TenantSerializer
+    permission_classes = [IsManagerOrReadOnly]
 
     @action(detail=True, methods=["get"])
     def details(self, request, pk=None):
@@ -166,6 +168,7 @@ class TenantViewSet(viewsets.ModelViewSet):
 class UnitViewSet(viewsets.ModelViewSet):
     queryset = Unit.objects.all().prefetch_related("lease_set")
     serializer_class = UnitSerializer
+    permission_classes = [IsManagerOrReadOnly]
 
     def perform_create(self, serializer):
         unit_no = serializer.validated_data.get("unit_no")
@@ -180,6 +183,7 @@ class UnitViewSet(viewsets.ModelViewSet):
 class LeaseViewSet(viewsets.ModelViewSet):
     queryset = Lease.objects.select_related("tenant", "unit")
     serializer_class = LeaseSerializer
+    permission_classes = [IsManagerOrReadOnly]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -250,6 +254,7 @@ class LeaseViewSet(viewsets.ModelViewSet):
 class InvoiceViewSet(viewsets.ModelViewSet):
     queryset = Invoice.objects.all()
     serializer_class = InvoiceSerializer
+    permission_classes = [IsManagerOrReadOnly]
 
     def get_queryset(self):
         return (
@@ -516,6 +521,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.all()
     serializer_class = PaymentSerializer
+    permission_classes = [IsManagerOrReadOnly]
 
     def create(self, request, *args, **kwargs):
         try:
@@ -556,6 +562,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
 class PaymentAllocationViewSet(viewsets.ModelViewSet):
     queryset = PaymentAllocation.objects.select_related("payment", "invoice")
     serializer_class = PaymentAllocationSerializer
+    permission_classes = [IsManagerOrReadOnly]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -569,6 +576,7 @@ class PaymentAllocationViewSet(viewsets.ModelViewSet):
 class InteractionViewSet(viewsets.ModelViewSet):
     queryset = Interaction.objects.all()
     serializer_class = InteractionSerializer
+    permission_classes = [IsManagerOrReadOnly]
 
 
 

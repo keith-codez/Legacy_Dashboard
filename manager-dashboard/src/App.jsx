@@ -3,11 +3,10 @@ import DashboardLayout from "./layouts/DashboardLayout";
 
 import Login from "./components/Login";
 import Dashboard from "./pages/manager/Dashboard";
-import TenantList from "./pages/manager/Tenants";
+import TenantList from "./features/tenants/Tenants";
 import Invoices from "./pages/manager/Invoices";
 import LeaseList from "./pages/manager/Leases";
 import Reports from "./pages/manager/Reports";
-import TenantDetails from "./pages/manager/TenantDetails";
 import EditTenant from "./pages/manager/EditTenant";
 import CreateTenant from "./pages/manager/CreateTenant";
 import PaymentsList from "./pages/manager/Payments";
@@ -26,11 +25,30 @@ import EditUnit from "./pages/manager/EditUnit";
 import LeaseDetail from "./pages/manager/LeaseDetail";
 import CreateLease from "./pages/manager/CreateLease";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ManagerTenantDetails from "./pages/manager/TenantDetails";
+
+import OwnerLayout from "./layouts/OwnerLayout";
+import OwnerDashboard from "./pages/owner/Dashboard";
+import OwnerTenantList from "./pages/owner/Tenants";
+import OwnerReports from "./pages/owner/Reports";
+import OwnerTenantDetails from "./pages/owner/TenantDetails";
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+
+        {/* Owner Dashboard */}
+        <Route path="/owner" element={
+          <ProtectedRoute allowedRoles={["shareholder"]}>
+            <OwnerLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<OwnerDashboard />} />
+          <Route path="tenants" element={<OwnerTenantList />} />
+          <Route path="tenants/:id" element={<OwnerTenantDetails />} />
+          <Route path="reports" element={<OwnerReports />} />
+        </Route>
 
         {/* Public */}
         <Route path="/" element={<Login />} />
@@ -46,7 +64,7 @@ export default function App() {
         >
           <Route index element={<Dashboard />} />
           <Route path="tenants" element={<TenantList />} />
-          <Route path="tenants/:id" element={<TenantDetails />} />
+          <Route path="tenants/:id" element={<ManagerTenantDetails />} />
           <Route path="tenants/new" element={<CreateTenant />} />
           <Route path="tenants/:id/edit" element={<EditTenant />} />
           <Route path="payments" element={<PaymentsList />} />

@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { X } from "lucide-react";
 import { logout } from "../api/auth";
 
-export default function Sidebar({ isOpen, onClose }) {
+export default function OwnerSidebar({ isOpen, onClose }) {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -10,21 +10,16 @@ export default function Sidebar({ isOpen, onClose }) {
     navigate("/");
   };
 
-  const baseClasses = "block px-4 py-2 rounded transition-colors";
-  const activeClasses = "bg-gray-200 font-semibold";
+  const base = "block px-4 py-2 rounded";
+  const active = "bg-gray-200 font-semibold";
 
   const linkClasses = ({ isActive }) =>
-    `${baseClasses} ${isActive ? activeClasses : "hover:bg-gray-100"}`;
+    `${base} ${isActive ? active : "hover:bg-gray-100"}`;
 
   const links = [
-    { to: "/manager", label: "Dashboard", end: true },
-    { to: "/manager/tenants", label: "Tenants" },
-    { to: "/manager/payments", label: "Payments" },
-    { to: "/manager/invoices", label: "Invoices" },
-    { to: "/manager/leases", label: "Leases" },
-    { to: "/manager/units", label: "Units" },
-    { to: "/manager/interactions", label: "Interactions" },
-    { to: "/manager/reports", label: "Statements & Reports" },
+    { to: "/owner", label: "Dashboard", end: true },
+    { to: "/owner/tenants", label: "Tenants" },
+    { to: "/owner/reports", label: "Reports" },
   ];
 
   return (
@@ -42,21 +37,21 @@ export default function Sidebar({ isOpen, onClose }) {
           inset-y-0 left-0
           w-64 bg-white border-r
           z-40
-          transform transition-transform duration-200
+          transform transition-transform
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
           lg:translate-x-0
           h-screen
         `}
       >
         <div className="flex flex-col h-full">
-          <div className="p-6 font-bold text-lg border-b flex justify-between items-center">
-            Property Manager
+          <div className="p-6 font-bold border-b flex justify-between">
+            Owner Panel
             <button onClick={onClose} className="lg:hidden">
-              <X className="w-5 h-5" />
+              <X />
             </button>
           </div>
 
-          <nav className="flex-1 px-4 py-6 space-y-2 text-sm overflow-y-auto">
+          <nav className="flex-1 px-4 py-6 space-y-2">
             {links.map(link => (
               <NavLink
                 key={link.to}

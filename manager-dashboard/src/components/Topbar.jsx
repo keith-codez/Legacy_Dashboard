@@ -2,71 +2,87 @@ import { useLocation, useNavigate } from "react-router-dom";
 import BackButton from "./BackButton";
 import Breadcrumbs from "./Breadcrumbs";
 
-export default function Topbar({ onMenuClick }) {
+export default function Topbar({ onMenuClick, role }) {
   const location = useLocation();
   const navigate = useNavigate();
 
   const pathnames = location.pathname.split("/").filter(Boolean);
-  const showBackButton = pathnames.length > 0;
+  const showBackButton = pathnames.length > 1;
 
   const isTenantDetails =
-    location.pathname.startsWith("/manager/tenants/") &&
-    pathnames.length === 3;
+    pathnames.includes("tenants") &&
+    pathnames.length >= 3;
 
-  const tenantId = isTenantDetails ? pathnames[2] : null;
+  const tenantId = isTenantDetails ? pathnames[pathnames.length - 1] : null;
+
+  const labels = {
+    owner: {
+      title: "Owner Dashboard",
+      action: "View",
+      actionColor: "bg-green-600",
+      context: "Portfolio Intelligence",
+    },
+    manager: {
+      title: "Manager Dashboard",
+      action: "Edit",
+      actionColor: "bg-blue-600",
+      context: "Operations Console",
+    },
+  };
+
+  const cfg = labels[role] || labels.manager;
+
+  const tenantRoute = role === "owner"
+    ? `/owner/tenants/${tenantId}`
+    : `/manager/tenants/${tenantId}/edit`;
 
   return (
     <>
-      {/* Mobile Header */}
-      <header className="lg:hidden bg-white border-b p-4 flex items-center justify-between">
-        <button
-          onClick={onMenuClick}
-          className="text-gray-700 text-xl"
-        >
-          ☰
-        </button>
+      {/* Mobile */}
+      <header className="lg:hidden bg-white border-b p-4 flex justify-between items-center">
+        <button onClick={onMenuClick} className="text-xl">☰</button>
 
-        <span className="font-semibold">
-          Manager Dashboard
-        </span>
+        <span className="font-semibold">{cfg.title}</span>
 
-        {isTenantDetails && (
+        {isTenantDetails && tenantId && (
           <button
-            onClick={() =>
-              navigate(`/manager/tenants/${tenantId}/edit`)
-            }
-            className="text-sm bg-blue-600 text-white px-3 py-1 rounded"
+            onClick={() => navigate(tenantRoute)}
+            className={`text-sm px-3 py-1 rounded text-white ${cfg.actionColor}`}
           >
-            Edit
+            {cfg.action}
           </button>
         )}
       </header>
 
-      {/* Mobile Breadcrumb Row */}
-      <div className="md:hidden bg-white border-b px-6 py-3 flex items-center justify-between">
+      {/* Breadcrumb */}
+      <div className="md:hidden bg-white border-b px-6 py-3 flex justify-between">
         <div className="flex items-center space-x-4">
           <BackButton visible={showBackButton} />
           <Breadcrumbs />
         </div>
       </div>
 
-      {/* Desktop Topbar */}
-      <div className="hidden md:flex bg-white border-b px-8 py-4 items-center justify-between">
+      {/* Desktop */}
+      <div className="hidden md:flex bg-white border-b px-8 py-4 justify-between items-center">
         <div className="flex items-center space-x-6">
           <BackButton visible={showBackButton} />
           <Breadcrumbs />
         </div>
 
-        {isTenantDetails && (
-          <button
-            onClick={() =>
-              navigate(`/manager/tenants/${tenantId}/edit`)
-            }
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
-          >
-            Edit Tenant
-          </button>
-        )}
+        <div className="flex items-center gap-4">
+          <div className="text-sm font-semibold text-gray-700">
+            {cfg.context}
+          </div>
+
+          {isTenantDetails && tenantId && (
+            <button
+              onClick={() => navigate(tenantRoute)}
+              className={`px-4 py-2 rounded text-white ${cfg.actionColor}`}
+            >
+              {cfg.action} Tenant
+            </button>
+          )}
+        </div>
       </div>
     </>
   );

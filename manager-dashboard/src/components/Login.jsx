@@ -18,8 +18,16 @@ export default function Login() {
 
   const handleLogin = async () => {
     try {
-      await login(form);
-      navigate("/manager");
+      const res = await login(form);
+
+      const role = res.data.role;
+
+      if (role === "shareholder") {
+        navigate("/owner");
+      } else {
+        navigate("/manager");
+      }
+
     } catch {
       setError("Invalid username or password");
     }
