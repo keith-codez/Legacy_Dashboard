@@ -1,8 +1,9 @@
+// manager-dashboard/src/api/client.js
 import axios from "axios";
 
 const API = axios.create({
   baseURL: "http://localhost:8000/api",
-  withCredentials: true, // Include cookies in requests
+  withCredentials: true,
 });
 
 export default API;

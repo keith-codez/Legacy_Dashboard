@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-*mf(kg++mzov@m(-crhqvz^_i%m8zk&i^+)ahc_npd!#&g(8eg
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 
 # Application definition
@@ -42,7 +42,6 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'corsheaders',
-
 
     'property',
 ]
@@ -60,9 +59,16 @@ MIDDLEWARE = [
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  
+    "http://localhost:5173", 
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://127.0.0.1:5173",
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
 
 CORS_ALLOW_HEADERS = [
     "content-type",
@@ -161,11 +167,11 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
 }
 
-SESSION_COOKIE_SAMESITE = "None"
-CSRF_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
 
-SESSION_COOKIE_SECURE = False   # True in production
+SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 
-JWT_COOKIE_SAMESITE = "None"
+JWT_COOKIE_SAMESITE = "Lax"
 JWT_COOKIE_SECURE = False
